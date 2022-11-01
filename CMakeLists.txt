@@ -26,6 +26,7 @@ find_package(Boost COMPONENTS system thread REQUIRED)
 
 find_package(kdl_parser REQUIRED)
 find_package(orocos_kdl REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc highgui)
 
 find_package(urdf QUIET)
 if(urdf_FOUND)
@@ -47,12 +48,13 @@ include_directories(
 	${VISP_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
     ${catkin_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
     /usr/include/kdl
     /usr/include/kdl_parser
 )
 
 add_executable (ic src/impedance_controller.cpp src/kinematics.cpp)
-target_link_libraries (ic ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${orocos_kdl_LIBRARIES} kdl_parser urdf)
+target_link_libraries (ic ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${orocos_kdl_LIBRARIES} kdl_parser urdf ${OpenCV_LIBS})
 
 
 # include(${LCM_USE_FILE})
