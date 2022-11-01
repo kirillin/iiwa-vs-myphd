@@ -13,6 +13,7 @@
 #include "drake/lcmt_iiwa_command.hpp"
 #include "drake/lcmt_iiwa_status.hpp"
 
+
 using drake::lcmt_iiwa_status;
 using drake::lcmt_iiwa_command;
 
@@ -43,6 +44,8 @@ class Controller {
 	lcmt_iiwa_command lcm_command{};
 
 	lcm::LCM lcm;
+
+
 
  public:
 	Controller(){
