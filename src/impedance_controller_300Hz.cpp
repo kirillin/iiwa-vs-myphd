@@ -96,7 +96,7 @@ class Controller {
 	// IBVS parameters
 	Eigen::Matrix<double, 8, 8>  Klambda;
 	int Np = 4;
-	double opt_square_width = 0.06;
+	double opt_square_width = 0.11;
 	double L = opt_square_width / 2.;
 	double distance_same_blob = 1.; // 2 blobs are declared same if their distance is less than this value
 	double l = 0;
@@ -149,8 +149,9 @@ class Controller {
 		// kinematics initialization
 		std::string urdf_file = "/home/iiwa/phd_code/ws/labs-robots-files/kuka-iiwa/iiwa_model_simscape/iiwa_description/urdf/iiwa14.urdf";
 		base_link = "world";
-		tool_link = "iiwa_link_ee_kuka";
-
+		// tool_link = "iiwa_link_ee_kuka";
+		tool_link = "iiwa_link_ee";
+		
 		urdf::Model model;
 		if (!model.initFile(urdf_file)){
 			printf("Failed to parse urdf file");
@@ -497,8 +498,7 @@ class Controller {
                                 if (!init_cv) {
                                     vpColVector cP;
                                     point[i].changeFrame(cMo, cP);
-                                    // Z = cP[2]; //FIXME: can be estimated from square dims???
-									Z = 2.0;
+                                    Z = cP[2]; //FIXME: can be estimated from square dims???
                                 }
 
                                 x = (ip[i].get_u() - cam.get_u0()) * rhox / f;
@@ -550,13 +550,14 @@ class Controller {
 							pinv(tempL, pinvL);
 							v_c = pinvL * error;
 
-							std::cout << "v_c(0:1): " << v_c(0) << "\t" << v_c(1) << "\t" << v_c(2) << std::endl;
-							// v_c(0) = 0;
-							// v_c(1) = 0;
-							// v_c(2) = 0;
+
+							v_c(0) = 0.01;
+							v_c(1) = 0.0;
+							v_c(2) = 0;
 							v_c(3) = 0;
 							v_c(4) = 0;
 							v_c(5) = 0;
+							std::cout << "v_c(0:1): " << v_c(0) << "\t" << v_c(1) << "\t" << v_c(2) << std::endl;
 
 							double a = lambda_0 - lambda_inf;
 							double lambda = a * exp( - lambda_0l * v_c.lpNorm<Eigen::Infinity>() / a) + lambda_inf;
@@ -800,7 +801,7 @@ class Controller {
 					kdl_q(i) = lcm_status.joint_position_measured[i];
 					kdl_dq(i) = lcm_status.joint_velocity_estimated[i];
 				}
-				jnt_to_pose_solver->JntToCart(kdl_q, kdl_x0);
+				// jnt_to_pose_solver->JntToCart(kdl_q, kdl_x0);
 			}
 
 			for (int i = 0; i < kNumJoints; i++) {
@@ -809,24 +810,76 @@ class Controller {
 			}
 			jnt_to_pose_solver->JntToCart(kdl_q, kdl_x);
 			jnt_to_jac_solver->JntToJac(kdl_q, kdl_J);
-			kdl_J.changeRefFrame(kdl_x);
+			// kdl_J.changeRefFrame(kdl_x);
+			// kdl_J.changeRefPoint(kdl_x);
+
+			// bool 	KDL::changeBase (const Jacobian &src1, const Rotation &rot, Jacobian &dest)
+			// bool 	KDL::changeRefPoint (const Jacobian &src1, const Vector &base_AB, Jacobian &dest)
+			// bool 	KDL::changeRefFrame (const Jacobian &src1, const Frame &frame, Jacobian &dest)
+
 
 			for (int i = 0; i < 3; i++) {
 				std::cout << kdl_x.p(i) << std::endl;
 			}
 			double roll,pitch,yaw;
-			kdl_x.M.GetRPY(roll,pitch,yaw);
-			std::cout << "RPY: " << roll << "\t" << pitch << "\t" << yaw << std::endl;
+			// kdl_x.M.GetRPY(roll,pitch,yaw);
+			kdl_x.M.GetEulerZYX(roll,pitch,yaw);
+			std::cout << "RPY: " << roll * 180/3.1415 << "\t" << pitch * 180/3.1415 << "\t" << yaw * 180/3.1415 << std::endl;
 			
+			std::cout << "***\n";
+			std::cout << iiwa_chain.getNrOfJoints() << std::endl;
+ 			std::cout << iiwa_chain.getNrOfSegments() << std::endl;
+
+			for (int i = 0; i < iiwa_chain.getNrOfSegments(); i++ ) {
+				std::cout << iiwa_chain.getSegment(i).getName() << std::endl;
+			}
+
+			// KDL::Frame p_out = KDL::Frame::Identity();
+			// int j=0;
+			// for(unsigned int i=0; i<iiwa_chain.getNrOfSegments();i++){
+			// 	if(iiwa_chain.getSegment(i).getJoint().getType()!=KDL::Joint::None){
+			// 		p_out = p_out*iiwa_chain.getSegment(i).pose(q(j));
+			// 		j++;
+			// 	}else{
+			// 		p_out = p_out*iiwa_chain.getSegment(i).pose(0.0);
+			// 	}
+			// }
+
+			// for (int i = 0; i < 3; i++) {
+			// 	std::cout << p_out.p(i) << std::endl;
+			// }
+			
+			// // kdl_x.M.GetRPY(roll,pitch,yaw);
+			// p_out.M.GetEulerZYX(roll,pitch,yaw);
+			// std::cout << "RPY: " << roll * 180/3.1415 << "\t" << pitch * 180/3.1415 << "\t" << yaw * 180/3.1415 << std::endl;
+
+			std::cout << "***\n";
+
 			for (int i = 0; i < 6; i++) {
 				for (int j = 0; j < 7; j++) {
 					Jacobian(i, j) = kdl_J(i, j);
 				}
 			}
 
+
+			Eigen::Matrix<double, 3, 3> Rzero = Eigen::Matrix<double, 3, 3>::Zero();
+            Eigen::Matrix<double, 3, 3> R;
+			Eigen::Matrix<double, 3, 3> Rp;
+			Eigen::Matrix<double, 3, 3> skp;
+			R << kdl_x.M.data[0], kdl_x.M.data[1], kdl_x.M.data[2], kdl_x.M.data[3], kdl_x.M.data[4], kdl_x.M.data[5], kdl_x.M.data[6], kdl_x.M.data[7], kdl_x.M.data[8];
+			skp << 0,	-kdl_x.p(2),	kdl_x.p(1),
+				kdl_x.p(2),	0,	-kdl_x.p(0),
+				kdl_x.p(1), kdl_x.p(0), 0;
+			Rp = skp * R;
+
+			Eigen::Matrix<double, 6, 6> V;	// world to ee
+            V << R, Rp, Rzero, R;
+			
+			Jacobian = V * Jacobian;
+
 			pinv2(Jacobian, pinvJ);
 			
-			v_c << 0.0, 0.0, 0.0, 0.0, 0.0, 0.01;
+			v_c << 0.00, 0.00, 0.01, 0.0, 0.0, 0.00;
 			dq_des =  pinvJ * v_c;
 			q_delta += dq_des * dt;
 			
@@ -854,9 +907,9 @@ int main(int argc, char **argv)
 	std::cout << "Node started" << std::endl;
 
 	Controller controller;
-	controller.loop_vs();
+	// controller.loop_vs();
 	// controller.camera_test();
-	// controller.vel_ctrl_test();
+	controller.vel_ctrl_test();
 
 	return 0;
 }
