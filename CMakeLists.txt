@@ -53,7 +53,10 @@ include_directories(
     /usr/include/kdl_parser
 )
 
-add_executable (ic src/impedance_controller.cpp src/kinematics.cpp)
+# add_executable (ic src/impedance_controller.cpp src/kinematics.cpp)
+# target_link_libraries (ic ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${orocos_kdl_LIBRARIES} kdl_parser urdf ${OpenCV_LIBS})
+
+add_executable (ic src/impedance_controller_300Hz.cpp)
 target_link_libraries (ic ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${orocos_kdl_LIBRARIES} kdl_parser urdf ${OpenCV_LIBS})
 
 

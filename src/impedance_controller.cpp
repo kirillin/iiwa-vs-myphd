@@ -1060,36 +1060,35 @@ void frame_to_mat(const rs2::frame &f, cv::Mat &img)
 }
 } // namespace
  
-int main()
-{
-//   const int width = 640, height = 480, fps = 60;
-  vpRealSense2 rs;
-  rs2::config config;
-  config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 100, RS2_FORMAT_Y8, 300);
-  rs.open(config);
- 
-  rs2::pipeline_profile &profile = rs.getPipelineProfile();
-  rs2::pipeline &pipe = rs.getPipeline();
- 
-  auto infrared_profile = profile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
-  cv::Mat mat_infrared1(infrared_profile.height(), infrared_profile.width(), CV_8UC1);
+int main() {
+	//   const int width = 640, height = 480, fps = 60;
+	vpRealSense2 rs;
+	rs2::config config;
+	config.enable_stream(RS2_STREAM_INFRARED, 1, 848, 100, RS2_FORMAT_Y8, 300);
+	rs.open(config);
+
+	rs2::pipeline_profile &profile = rs.getPipelineProfile();
+	rs2::pipeline &pipe = rs.getPipeline();
+
+	auto infrared_profile = profile.get_stream(RS2_STREAM_INFRARED).as<rs2::video_stream_profile>();
+	cv::Mat mat_infrared1(infrared_profile.height(), infrared_profile.width(), CV_8UC1);
 
 
-vpImage<unsigned char> I(100, 848);
-vpDisplayX d(I);
+	vpImage<unsigned char> I(100, 848);
+	vpDisplayX d(I);
 
-  while (true) {
- 
-    auto data = pipe.wait_for_frames();
-    frame_to_mat(data.get_infrared_frame(1), mat_infrared1);
+	while (true) {
 
-	
+	auto data = pipe.wait_for_frames();
+	frame_to_mat(data.get_infrared_frame(1), mat_infrared1);
+
+
 	vpImageConvert::convert(mat_infrared1, I);
 
 	vpDisplay::display(I);
 	vpDisplay::flush(I);
 
-  }
+	}
  
   return EXIT_SUCCESS;
 }
