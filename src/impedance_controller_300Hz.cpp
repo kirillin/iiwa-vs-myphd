@@ -60,6 +60,158 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 
+
+// namespace iiwa {
+
+//     static struct Parameters
+//     {
+//         double  l_1z,
+//                 l_3z,
+//                 l_5z,
+//                 l_7z;
+
+//         Parameters()
+//         {
+//             l_1z = 0.360;
+//             l_3z = 0.420;
+//             l_5z = 0.400;
+//             l_7z = 0.126;
+//         }
+//     } P;
+
+//     void forwarkKinematics(Eigen::Vector3d &T, Eigen::Matrix<double, 7, 1> &q)
+//     {
+// 		T[0] = P.l_3z*sin(q[1])*cos(q[0]) + P.l_5z*(-(-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) + sin(q[1])*cos(q[0])*cos(q[3])) + P.l_7z*((((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*cos(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*sin(q[4]))*sin(q[5]) - ((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) - sin(q[1])*cos(q[0])*cos(q[3]))*cos(q[5]));
+// 		T[1] = P.l_3z*sin(q[0])*sin(q[1]) + P.l_5z*(-(sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) + sin(q[0])*sin(q[1])*cos(q[3])) + P.l_7z*((((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*cos(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*sin(q[4]))*sin(q[5]) - ((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) - sin(q[0])*sin(q[1])*cos(q[3]))*cos(q[5]));
+// 		T[2] = P.l_1z + P.l_3z*cos(q[1])  + P.l_5z*(sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3])) + P.l_7z*(((-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*cos(q[4]) + sin(q[1])*sin(q[2])*sin(q[4]))*sin(q[5]) + (sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]))*cos(q[5]));
+//     }
+
+//     void forwarkKinematics(Eigen::Quaterniond & quat, Eigen::Vector3d & T, Eigen::Matrix<double, 7, 1> & q)
+//     {
+//         // Position
+// 		forwarkKinematics(T, q);
+
+//         // Rotation
+//         quat.w() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2) + cos(q[0]/2)*cos(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[1]/2)*cos(q[2]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)) - sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2) + cos(q[1]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2));
+// 		quat.x() = sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[3]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2) + cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2)) - cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2) + cos(q[0]/2)*cos(q[2]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) + sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2));
+// 		quat.y() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[3]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2) + cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2)) + sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2) + cos(q[0]/2)*cos(q[2]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) + sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2));
+// 		quat.z() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2) + cos(q[1]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)) + sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2) + cos(q[0]/2)*cos(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[1]/2)*cos(q[2]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2));
+
+//     }
+
+//     void jacobian(Eigen::Matrix<double, 6, 7> &J, Eigen::Matrix<double, 7, 1> &q)
+//     {
+//         J(0, 0) = -P.l_3z*sin(q[0])*sin(q[1]) - P.l_5z*sin(q[0])*sin(q[1])*cos(q[3]) + P.l_5z*sin(q[0])*sin(q[3])*cos(q[1])*cos(q[2]) + P.l_5z*sin(q[2])*sin(q[3])*cos(q[0]) - P.l_7z*sin(q[0])*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[1])*cos(q[3])*cos(q[5]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[1]) + P.l_7z*sin(q[0])*sin(q[3])*cos(q[1])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[5])*cos(q[0])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[2]);
+//         J(1, 0) = P.l_3z*sin(q[1])*cos(q[0]) + P.l_5z*sin(q[0])*sin(q[2])*sin(q[3]) + P.l_5z*sin(q[1])*cos(q[0])*cos(q[3]) - P.l_5z*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[2]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[2])*sin(q[5])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[4])*sin(q[5])*cos(q[2]) + P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[4]) + P.l_7z*sin(q[1])*cos(q[0])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[1]) - P.l_7z*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]);
+//         J(2, 0) = 0;
+//         J(3, 0) = 0;
+//         J(4, 0) = 0;
+//         J(5, 0) = 1;
+
+//         J(0, 1) = (P.l_3z*cos(q[1]) + P.l_5z*sin(q[1])*sin(q[3])*cos(q[2]) + P.l_5z*cos(q[1])*cos(q[3]) + P.l_7z*sin(q[1])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[1])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[4]) + P.l_7z*cos(q[1])*cos(q[3])*cos(q[5]))*cos(q[0]);
+//         J(1, 1) = (P.l_3z*cos(q[1]) + P.l_5z*sin(q[1])*sin(q[3])*cos(q[2]) + P.l_5z*cos(q[1])*cos(q[3]) + P.l_7z*sin(q[1])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[1])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[4]) + P.l_7z*cos(q[1])*cos(q[3])*cos(q[5]))*sin(q[0]);
+//         J(2, 1) = -P.l_3z*sin(q[1]) - P.l_5z*sin(q[1])*cos(q[3]) + P.l_5z*sin(q[3])*cos(q[1])*cos(q[2]) - P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[4]) - P.l_7z*sin(q[1])*cos(q[3])*cos(q[5]) + P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[1]) + P.l_7z*sin(q[3])*cos(q[1])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]);
+//         J(3, 1) = -sin(q[0]);
+//         J(4, 1) = cos(q[0]);
+//         J(5, 1) = 0;
+
+//         J(0, 2) = P.l_5z*sin(q[0])*sin(q[3])*cos(q[2]) + P.l_5z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[1]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[0])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2]);
+//         J(1, 2) = P.l_5z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[1]) - P.l_5z*sin(q[3])*cos(q[0])*cos(q[2]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[1])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[2])*sin(q[5])*cos(q[1])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[4])*sin(q[5])*cos(q[1])*cos(q[2]) - P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[0]) - P.l_7z*sin(q[3])*cos(q[0])*cos(q[2])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[0])*cos(q[2])*cos(q[3])*cos(q[4]);
+//         J(2, 2) = (-P.l_5z*sin(q[2])*sin(q[3]) - P.l_7z*sin(q[2])*sin(q[3])*cos(q[5]) + P.l_7z*sin(q[2])*sin(q[5])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[4])*sin(q[5])*cos(q[2]))*sin(q[1]);
+//         J(3, 2) = sin(q[1])*cos(q[0]);
+//         J(4, 2) = sin(q[0])*sin(q[1]);
+//         J(5, 2) = cos(q[1]);
+
+//         J(0, 3) = P.l_5z*sin(q[0])*sin(q[2])*cos(q[3]) - P.l_5z*sin(q[1])*sin(q[3])*cos(q[0]) - P.l_5z*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*sin(q[5])*cos(q[4]) + P.l_7z*sin(q[0])*sin(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[3])*cos(q[0])*cos(q[5]) + P.l_7z*sin(q[1])*sin(q[5])*cos(q[0])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[4]) - P.l_7z*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[5]);
+//         J(1, 3) = -P.l_5z*sin(q[0])*sin(q[1])*sin(q[3]) - P.l_5z*sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3]) - P.l_5z*sin(q[2])*cos(q[0])*cos(q[3]) - P.l_7z*sin(q[0])*sin(q[1])*sin(q[3])*cos(q[5]) + P.l_7z*sin(q[0])*sin(q[1])*sin(q[5])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[4]) - P.l_7z*sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[4]) - P.l_7z*sin(q[2])*cos(q[0])*cos(q[3])*cos(q[5]);
+//         J(2, 3) = P.l_5z*sin(q[1])*cos(q[2])*cos(q[3]) - P.l_5z*sin(q[3])*cos(q[1]) + P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[2])*cos(q[4]) + P.l_7z*sin(q[1])*cos(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[3])*cos(q[1])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[1])*cos(q[3])*cos(q[4]);
+//         J(3, 3) = sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]);
+//         J(4, 3) = sin(q[0])*sin(q[2])*cos(q[1]) - cos(q[0])*cos(q[2]);
+//         J(5, 3) = -sin(q[1])*sin(q[2]);
+
+//         J(0, 4) = P.l_7z*(sin(q[0])*sin(q[2])*sin(q[4])*cos(q[3]) - sin(q[0])*cos(q[2])*cos(q[4]) - sin(q[1])*sin(q[3])*sin(q[4])*cos(q[0]) - sin(q[2])*cos(q[0])*cos(q[1])*cos(q[4]) - sin(q[4])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3]))*sin(q[5]);
+//         J(1, 4) = P.l_7z*(-sin(q[0])*sin(q[1])*sin(q[3])*sin(q[4]) - sin(q[0])*sin(q[2])*cos(q[1])*cos(q[4]) - sin(q[0])*sin(q[4])*cos(q[1])*cos(q[2])*cos(q[3]) - sin(q[2])*sin(q[4])*cos(q[0])*cos(q[3]) + cos(q[0])*cos(q[2])*cos(q[4]))*sin(q[5]);
+//         J(2, 4) = P.l_7z*(sin(q[1])*sin(q[2])*cos(q[4]) + sin(q[1])*sin(q[4])*cos(q[2])*cos(q[3]) - sin(q[3])*sin(q[4])*cos(q[1]))*sin(q[5]);
+//         J(3, 4) = -(-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) + sin(q[1])*cos(q[0])*cos(q[3]);
+//         J(4, 4) = -(sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) + sin(q[0])*sin(q[1])*cos(q[3]);
+//         J(5, 4) = sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]);
+
+//         J(0, 5) = P.l_7z*(-sin(q[0])*sin(q[2])*sin(q[3])*sin(q[5]) - sin(q[0])*sin(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) - sin(q[0])*sin(q[4])*cos(q[2])*cos(q[5]) + sin(q[1])*sin(q[3])*cos(q[0])*cos(q[4])*cos(q[5]) - sin(q[1])*sin(q[5])*cos(q[0])*cos(q[3]) - sin(q[2])*sin(q[4])*cos(q[0])*cos(q[1])*cos(q[5]) + sin(q[3])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2]) + cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]));
+//         J(1, 5) = P.l_7z*(sin(q[0])*sin(q[1])*sin(q[3])*cos(q[4])*cos(q[5]) - sin(q[0])*sin(q[1])*sin(q[5])*cos(q[3]) - sin(q[0])*sin(q[2])*sin(q[4])*cos(q[1])*cos(q[5]) + sin(q[0])*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[2]) + sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[2])*sin(q[3])*sin(q[5])*cos(q[0]) + sin(q[2])*cos(q[0])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[4])*cos(q[0])*cos(q[2])*cos(q[5]));
+//         J(2, 5) = P.l_7z*(sin(q[1])*sin(q[2])*sin(q[4])*cos(q[5]) - sin(q[1])*sin(q[3])*sin(q[5])*cos(q[2]) - sin(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[3])*cos(q[1])*cos(q[4])*cos(q[5]) - sin(q[5])*cos(q[1])*cos(q[3]));
+//         J(3, 5) = -((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*sin(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*cos(q[4]);
+//         J(4, 5) = -((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*sin(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*cos(q[4]);
+//         J(5, 5) = -(-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*sin(q[4]) + sin(q[1])*sin(q[2])*cos(q[4]);
+
+//         J(0, 6) = 0;
+//         J(1, 6) = 0;
+//         J(2, 6) = 0;
+//         J(3, 6) = (((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*cos(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*sin(q[4]))*sin(q[5]) - ((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) - sin(q[1])*cos(q[0])*cos(q[3]))*cos(q[5]);
+//         J(4, 6) = (((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*cos(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*sin(q[4]))*sin(q[5]) - ((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) - sin(q[0])*sin(q[1])*cos(q[3]))*cos(q[5]);
+//         J(5, 6) = ((-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*cos(q[4]) + sin(q[1])*sin(q[2])*sin(q[4]))*sin(q[5]) + (sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]))*cos(q[5]);
+//     }
+
+//     // w = 2*E*dotQuaternion
+//     void calculateEmatrixFromQuaternion(Eigen::MatrixXd & E, Eigen::Quaterniond & quat)
+//     {
+//         E(0, 0) =  quat.w();
+//         E(1, 0) =  quat.z();
+//         E(2, 0) = -quat.y();
+
+//         E(0, 1) = -quat.z();
+//         E(1, 1) =  quat.w();
+//         E(2, 1) =  quat.x();
+
+//         E(0, 2) =  quat.y();
+//         E(1, 2) = -quat.x();
+//         E(2, 2) =  quat.w();
+
+//         E(0, 3) = -quat.x();
+//         E(1, 3) = -quat.y();
+//         E(2, 3) = -quat.z();
+//     }
+
+//     // Jacobian inverse
+//     void solveInverseKinematicsJacobian(const Eigen::Quaterniond & quat, const Eigen::Vector3d & T, Eigen::VectorXd & q)
+//     {
+//         Eigen::MatrixXd J(6, 7); J.setZero();
+//         Eigen::MatrixXd E(3, 4); E.setZero();
+//         Eigen::Quaterniond quate; quate.setIdentity();
+//         Eigen::Vector3d p, ep; p.setZero();
+//         Eigen::VectorXd dq(7), e(6); e.setZero();
+//         q.setOnes();
+
+//         do {
+
+//             forwarkKinematics(quate, p, q);
+//             calculateEmatrixFromQuaternion(E, quate);
+//             jacobian(J, q);
+
+//             ep = 2*E*(quat.coeffs() - quate.coeffs());
+
+//             e(0) = T(0) - p(0);
+//             e(1) = T(1) - p(1);
+//             e(2) = T(2) - p(2);
+//             e(3) = ep(0);
+//             e(4) = ep(1);
+//             e(5) = ep(2);
+
+//             dq = J.transpose() * (J*J.transpose()).inverse() * e;
+//             q += 0.5*dq;
+
+//             std::cout << dq.transpose()*dq << std::endl;
+//             for (size_t i = 0; i < 7; ++i) {
+//                 if (q(i) >  M_PI) q(i) -= 2*M_PI;
+//                 if (q(i) < -M_PI) q(i) += 2*M_PI;
+//             }
+
+//         } while (dq.transpose()*dq > 1e-10);
+
+//     }
+
+// }
+
+
 using drake::lcmt_iiwa_status;
 using drake::lcmt_iiwa_command;
 
@@ -69,6 +221,22 @@ const int kNumJoints = 7;
 
 typedef Eigen::Matrix<double, kNumJoints, 1> Vector7d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
+
+    static struct Parameters
+    {
+        double  l_1z,
+                l_3z,
+                l_5z,
+                l_7z;
+
+        Parameters()
+        {
+            l_1z = 0.360;
+            l_3z = 0.420;
+            l_5z = 0.400;
+            l_7z = 0.126;
+        }
+    } P;
 
 class Controller {
 	
@@ -103,9 +271,9 @@ class Controller {
 	double vcx = 0, vcy = 0, vcz = 0;
 
 	// double lambda = 10;
-	double lambda_0 = 30;      // 4
-	double lambda_inf = 5;    // 1
-	double lambda_0l = 6000;     // 600
+	double lambda_0 = 60;      // 4
+	double lambda_inf = 30;    // 1
+	double lambda_0l = 10000;     // 600
 	// double mu = 4;          // 4
 	// double lambda = (lambda_0 - lambda_inf) * exp( - lambda_0l * v_c.lpNorm<Eigen::Infinity>() / (lambda_0 - lambda_inf)) + lambda_inf;
 
@@ -187,6 +355,82 @@ class Controller {
 			publish(tau_fb, utime, 0, 0);
 		}
 	};
+
+
+
+
+    void forwarkKinematics(Eigen::Vector3d &T, Eigen::Matrix<double, 7, 1> &q)
+    {
+		T[0] = P.l_3z*sin(q[1])*cos(q[0]) + P.l_5z*(-(-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) + sin(q[1])*cos(q[0])*cos(q[3])) + P.l_7z*((((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*cos(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*sin(q[4]))*sin(q[5]) - ((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) - sin(q[1])*cos(q[0])*cos(q[3]))*cos(q[5]));
+		T[1] = P.l_3z*sin(q[0])*sin(q[1]) + P.l_5z*(-(sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) + sin(q[0])*sin(q[1])*cos(q[3])) + P.l_7z*((((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*cos(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*sin(q[4]))*sin(q[5]) - ((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) - sin(q[0])*sin(q[1])*cos(q[3]))*cos(q[5]));
+		T[2] = P.l_1z + P.l_3z*cos(q[1])  + P.l_5z*(sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3])) + P.l_7z*(((-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*cos(q[4]) + sin(q[1])*sin(q[2])*sin(q[4]))*sin(q[5]) + (sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]))*cos(q[5]));
+    }
+
+    void forwarkKinematics(Eigen::Quaterniond & quat, Eigen::Vector3d & T, Eigen::Matrix<double, 7, 1> & q)
+    {
+        // Position
+		forwarkKinematics(T, q);
+
+        // Rotation
+        quat.w() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2) + cos(q[0]/2)*cos(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[1]/2)*cos(q[2]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)) - sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2) + cos(q[1]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2));
+		quat.x() = sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[3]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2) + cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2)) - cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2) + cos(q[0]/2)*cos(q[2]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) + sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2));
+		quat.y() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[3]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2) + cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2)) + sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[3]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[3]/2) + cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2) + cos(q[0]/2)*cos(q[2]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2) + sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2));
+		quat.z() = cos(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[2]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[4]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[0]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2) + cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2) + cos(q[1]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)) + sin(q[6]/2)*(cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2) + cos(q[0]/2)*cos(q[1]/2)*cos(q[2]/2)*cos(q[4]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[0]/2)*cos(q[1]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[2]/2)*sin(q[4]/2) - cos(q[0]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[4]/2)*sin(q[1]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[2]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[3]/2) - cos(q[1]/2)*cos(q[2]/2)*cos(q[3]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[4]/2) - cos(q[1]/2)*cos(q[3]/2)*cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[2]/2) + cos(q[0]/2)*cos(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[3]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[4]/2)*sin(q[5]/2) + cos(q[0]/2)*cos(q[5]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[4]/2) + cos(q[1]/2)*cos(q[2]/2)*sin(q[0]/2)*sin(q[3]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[1]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[2]/2)*sin(q[3]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[3]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[4]/2)*sin(q[5]/2) - cos(q[2]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[3]/2)*sin(q[4]/2) - cos(q[3]/2)*cos(q[4]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[5]/2) + cos(q[4]/2)*cos(q[5]/2)*sin(q[0]/2)*sin(q[1]/2)*sin(q[2]/2)*sin(q[3]/2));
+
+    }
+
+    void jacobian(Eigen::Matrix<double, 6, 7> &J, Eigen::Matrix<double, 7, 1> &q)
+    {
+        J(0, 0) = -P.l_3z*sin(q[0])*sin(q[1]) - P.l_5z*sin(q[0])*sin(q[1])*cos(q[3]) + P.l_5z*sin(q[0])*sin(q[3])*cos(q[1])*cos(q[2]) + P.l_5z*sin(q[2])*sin(q[3])*cos(q[0]) - P.l_7z*sin(q[0])*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[1])*cos(q[3])*cos(q[5]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[1]) + P.l_7z*sin(q[0])*sin(q[3])*cos(q[1])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[5])*cos(q[0])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[2]);
+        J(1, 0) = P.l_3z*sin(q[1])*cos(q[0]) + P.l_5z*sin(q[0])*sin(q[2])*sin(q[3]) + P.l_5z*sin(q[1])*cos(q[0])*cos(q[3]) - P.l_5z*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[2]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[2])*sin(q[5])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[4])*sin(q[5])*cos(q[2]) + P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[4]) + P.l_7z*sin(q[1])*cos(q[0])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[1]) - P.l_7z*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]);
+        J(2, 0) = 0;
+        J(3, 0) = 0;
+        J(4, 0) = 0;
+        J(5, 0) = 1;
+
+        J(0, 1) = (P.l_3z*cos(q[1]) + P.l_5z*sin(q[1])*sin(q[3])*cos(q[2]) + P.l_5z*cos(q[1])*cos(q[3]) + P.l_7z*sin(q[1])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[1])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[4]) + P.l_7z*cos(q[1])*cos(q[3])*cos(q[5]))*cos(q[0]);
+        J(1, 1) = (P.l_3z*cos(q[1]) + P.l_5z*sin(q[1])*sin(q[3])*cos(q[2]) + P.l_5z*cos(q[1])*cos(q[3]) + P.l_7z*sin(q[1])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[1])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[4]) + P.l_7z*cos(q[1])*cos(q[3])*cos(q[5]))*sin(q[0]);
+        J(2, 1) = -P.l_3z*sin(q[1]) - P.l_5z*sin(q[1])*cos(q[3]) + P.l_5z*sin(q[3])*cos(q[1])*cos(q[2]) - P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[4]) - P.l_7z*sin(q[1])*cos(q[3])*cos(q[5]) + P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[1]) + P.l_7z*sin(q[3])*cos(q[1])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4]);
+        J(3, 1) = -sin(q[0]);
+        J(4, 1) = cos(q[0]);
+        J(5, 1) = 0;
+
+        J(0, 2) = P.l_5z*sin(q[0])*sin(q[3])*cos(q[2]) + P.l_5z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[1]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[4])*sin(q[5]) + P.l_7z*sin(q[0])*sin(q[3])*cos(q[2])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[5])*cos(q[2])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[2])*sin(q[3])*cos(q[0])*cos(q[1])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[4])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2]);
+        J(1, 2) = P.l_5z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[1]) - P.l_5z*sin(q[3])*cos(q[0])*cos(q[2]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*cos(q[1])*cos(q[5]) - P.l_7z*sin(q[0])*sin(q[2])*sin(q[5])*cos(q[1])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[4])*sin(q[5])*cos(q[1])*cos(q[2]) - P.l_7z*sin(q[2])*sin(q[4])*sin(q[5])*cos(q[0]) - P.l_7z*sin(q[3])*cos(q[0])*cos(q[2])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[0])*cos(q[2])*cos(q[3])*cos(q[4]);
+        J(2, 2) = (-P.l_5z*sin(q[2])*sin(q[3]) - P.l_7z*sin(q[2])*sin(q[3])*cos(q[5]) + P.l_7z*sin(q[2])*sin(q[5])*cos(q[3])*cos(q[4]) + P.l_7z*sin(q[4])*sin(q[5])*cos(q[2]))*sin(q[1]);
+        J(3, 2) = sin(q[1])*cos(q[0]);
+        J(4, 2) = sin(q[0])*sin(q[1]);
+        J(5, 2) = cos(q[1]);
+
+        J(0, 3) = P.l_5z*sin(q[0])*sin(q[2])*cos(q[3]) - P.l_5z*sin(q[1])*sin(q[3])*cos(q[0]) - P.l_5z*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3]) + P.l_7z*sin(q[0])*sin(q[2])*sin(q[3])*sin(q[5])*cos(q[4]) + P.l_7z*sin(q[0])*sin(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[1])*sin(q[3])*cos(q[0])*cos(q[5]) + P.l_7z*sin(q[1])*sin(q[5])*cos(q[0])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[4]) - P.l_7z*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[5]);
+        J(1, 3) = -P.l_5z*sin(q[0])*sin(q[1])*sin(q[3]) - P.l_5z*sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3]) - P.l_5z*sin(q[2])*cos(q[0])*cos(q[3]) - P.l_7z*sin(q[0])*sin(q[1])*sin(q[3])*cos(q[5]) + P.l_7z*sin(q[0])*sin(q[1])*sin(q[5])*cos(q[3])*cos(q[4]) - P.l_7z*sin(q[0])*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[2])*cos(q[4]) - P.l_7z*sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[2])*sin(q[3])*sin(q[5])*cos(q[0])*cos(q[4]) - P.l_7z*sin(q[2])*cos(q[0])*cos(q[3])*cos(q[5]);
+        J(2, 3) = P.l_5z*sin(q[1])*cos(q[2])*cos(q[3]) - P.l_5z*sin(q[3])*cos(q[1]) + P.l_7z*sin(q[1])*sin(q[3])*sin(q[5])*cos(q[2])*cos(q[4]) + P.l_7z*sin(q[1])*cos(q[2])*cos(q[3])*cos(q[5]) - P.l_7z*sin(q[3])*cos(q[1])*cos(q[5]) + P.l_7z*sin(q[5])*cos(q[1])*cos(q[3])*cos(q[4]);
+        J(3, 3) = sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]);
+        J(4, 3) = sin(q[0])*sin(q[2])*cos(q[1]) - cos(q[0])*cos(q[2]);
+        J(5, 3) = -sin(q[1])*sin(q[2]);
+
+        J(0, 4) = P.l_7z*(sin(q[0])*sin(q[2])*sin(q[4])*cos(q[3]) - sin(q[0])*cos(q[2])*cos(q[4]) - sin(q[1])*sin(q[3])*sin(q[4])*cos(q[0]) - sin(q[2])*cos(q[0])*cos(q[1])*cos(q[4]) - sin(q[4])*cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3]))*sin(q[5]);
+        J(1, 4) = P.l_7z*(-sin(q[0])*sin(q[1])*sin(q[3])*sin(q[4]) - sin(q[0])*sin(q[2])*cos(q[1])*cos(q[4]) - sin(q[0])*sin(q[4])*cos(q[1])*cos(q[2])*cos(q[3]) - sin(q[2])*sin(q[4])*cos(q[0])*cos(q[3]) + cos(q[0])*cos(q[2])*cos(q[4]))*sin(q[5]);
+        J(2, 4) = P.l_7z*(sin(q[1])*sin(q[2])*cos(q[4]) + sin(q[1])*sin(q[4])*cos(q[2])*cos(q[3]) - sin(q[3])*sin(q[4])*cos(q[1]))*sin(q[5]);
+        J(3, 4) = -(-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) + sin(q[1])*cos(q[0])*cos(q[3]);
+        J(4, 4) = -(sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) + sin(q[0])*sin(q[1])*cos(q[3]);
+        J(5, 4) = sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]);
+
+        J(0, 5) = P.l_7z*(-sin(q[0])*sin(q[2])*sin(q[3])*sin(q[5]) - sin(q[0])*sin(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) - sin(q[0])*sin(q[4])*cos(q[2])*cos(q[5]) + sin(q[1])*sin(q[3])*cos(q[0])*cos(q[4])*cos(q[5]) - sin(q[1])*sin(q[5])*cos(q[0])*cos(q[3]) - sin(q[2])*sin(q[4])*cos(q[0])*cos(q[1])*cos(q[5]) + sin(q[3])*sin(q[5])*cos(q[0])*cos(q[1])*cos(q[2]) + cos(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]));
+        J(1, 5) = P.l_7z*(sin(q[0])*sin(q[1])*sin(q[3])*cos(q[4])*cos(q[5]) - sin(q[0])*sin(q[1])*sin(q[5])*cos(q[3]) - sin(q[0])*sin(q[2])*sin(q[4])*cos(q[1])*cos(q[5]) + sin(q[0])*sin(q[3])*sin(q[5])*cos(q[1])*cos(q[2]) + sin(q[0])*cos(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[2])*sin(q[3])*sin(q[5])*cos(q[0]) + sin(q[2])*cos(q[0])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[4])*cos(q[0])*cos(q[2])*cos(q[5]));
+        J(2, 5) = P.l_7z*(sin(q[1])*sin(q[2])*sin(q[4])*cos(q[5]) - sin(q[1])*sin(q[3])*sin(q[5])*cos(q[2]) - sin(q[1])*cos(q[2])*cos(q[3])*cos(q[4])*cos(q[5]) + sin(q[3])*cos(q[1])*cos(q[4])*cos(q[5]) - sin(q[5])*cos(q[1])*cos(q[3]));
+        J(3, 5) = -((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*sin(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*cos(q[4]);
+        J(4, 5) = -((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*sin(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*cos(q[4]);
+        J(5, 5) = -(-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*sin(q[4]) + sin(q[1])*sin(q[2])*cos(q[4]);
+
+        J(0, 6) = 0;
+        J(1, 6) = 0;
+        J(2, 6) = 0;
+        J(3, 6) = (((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*cos(q[3]) + sin(q[1])*sin(q[3])*cos(q[0]))*cos(q[4]) - (sin(q[0])*cos(q[2]) + sin(q[2])*cos(q[0])*cos(q[1]))*sin(q[4]))*sin(q[5]) - ((-sin(q[0])*sin(q[2]) + cos(q[0])*cos(q[1])*cos(q[2]))*sin(q[3]) - sin(q[1])*cos(q[0])*cos(q[3]))*cos(q[5]);
+        J(4, 6) = (((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*cos(q[3]) + sin(q[0])*sin(q[1])*sin(q[3]))*cos(q[4]) + (-sin(q[0])*sin(q[2])*cos(q[1]) + cos(q[0])*cos(q[2]))*sin(q[4]))*sin(q[5]) - ((sin(q[0])*cos(q[1])*cos(q[2]) + sin(q[2])*cos(q[0]))*sin(q[3]) - sin(q[0])*sin(q[1])*cos(q[3]))*cos(q[5]);
+        J(5, 6) = ((-sin(q[1])*cos(q[2])*cos(q[3]) + sin(q[3])*cos(q[1]))*cos(q[4]) + sin(q[1])*sin(q[2])*sin(q[4]))*sin(q[5]) + (sin(q[1])*sin(q[3])*cos(q[2]) + cos(q[1])*cos(q[3]))*cos(q[5]);
+    }
+
 
 	void handleFeedbackMessage(const lcm::ReceiveBuffer *rbuf, const std::string &chan, const drake::lcmt_iiwa_status *msg) {
 		lcm_status = *msg;
@@ -376,7 +620,7 @@ class Controller {
 
             double w, h; h = I.getWidth() / 2; w = I.getHeight() / 2;
 
-			double a = 30;
+			double a = 20;
             ipd.push_back(vpImagePoint(50 - a, 424 - a)); // left top
             ipd.push_back(vpImagePoint(50 - a, 424 + a)); // rifht top                        
             ipd.push_back(vpImagePoint(50 + a, 424 + a)); // right bottom
@@ -413,25 +657,21 @@ class Controller {
 
             Eigen::Matrix<double, 3, 3> Rzero = Eigen::Matrix<double, 3, 3>::Zero();
             Eigen::Matrix<double, 3, 3> cRe;
-            // roatate to pi/2 around Z-axis
-            // cRe <<  0,  0, -1,
-            //         1,  0,  0,
-            //         0, -1,  0;
-			//z
-			cRe <<  0, -1, 0,
-                    1, 0,  0,
-                    0, 0,  1;
+			Eigen::Matrix<double, 3, 3> cpR;
 			cRe <<  1, 0, 0,
-                    0, 1,  0,
-                    0, 0,  1;					
-			//zx
-			// cRe <<  1, 0, 0,
-            //         0, -1, 0,
-            //         0, 0,  -1;					
+                    0, 1, 0,
+                    0, 0, 1;				
 
+			Eigen::Matrix<double, 3, 1> cpe;
+			cpe << -0.0175, -0.08, 0.05;
+			Eigen::Matrix<double, 3, 3> Scpe;
+			skew(cpe, Scpe);
+			cpR = Scpe * cRe; 	
 
             Eigen::MatrixXd cVe(6, 6);
-            cVe << cRe, Rzero, Rzero, cRe;
+            cVe << cRe, Rzero, cpR, cRe;
+
+
 			Eigen::Matrix<double, 7, 7> Kvc; Kvc.setZero();
 			Eigen::Matrix<double, 7, 7> Ivc; Ivc.setZero();
 			Eigen::Matrix<double, 7, 1> dq_des;
@@ -461,10 +701,11 @@ class Controller {
 			Eigen::Matrix<double, 7, 1> Q_DES_0; Q_DES_0.setZero();
 			Eigen::Matrix<double, 7, 1> q_delta;
 			q_delta.setZero();
+			bool send_velocities_init = true;
 
 // START LOOP
 			while (0 == lcm.handle()) {
-				std::cout << "***" << std::endl;
+				// std::cout << "***" << std::endl;
 
 				// timers
 				loop_start_time = vpTime::measureTimeMs();
@@ -524,23 +765,36 @@ class Controller {
 
                             compute_error(ip, ipd, error);
 
-							for (int i = 0; i < kNumJoints; i++) {
-								kdl_q(i) = lcm_status.joint_position_measured[i];
-								// kdl_dq(i) = lcm_status.joint_velocity_estimated[i];
-							}
-							jnt_to_pose_solver->JntToCart(kdl_q, kdl_x);
-							jnt_to_jac_solver->JntToJac(kdl_q, kdl_J);
-							kdl_J.changeRefFrame(kdl_x);
-                          
-						    for (int i = 0; i < 6; i++) {
-								for (int j = 0; j < 7; j++) {
-									J(i, j) = kdl_J(i, j);
-								}
-							}
-
 							if (DEBUG) {
                             	computePose(point, ip, cam, init_cv, cMo);
 							}
+
+
+							Eigen::Matrix<double, 6, 7> J;
+							jacobian(J, q);
+
+							Eigen::Quaterniond quat;
+							Eigen::Matrix<double, 3, 1> fpe;
+							forwarkKinematics(quat, fpe, q);
+
+							Eigen::Matrix<double, 3, 3> fRe;
+							fRe = quat.normalized().toRotationMatrix();
+
+							// test FK
+							// Eigen::Matrix<double, 3, 1> ea = fRe.eulerAngles(0, 1, 2); 
+							// std::cout << "pe: " << fpe << std::endl;
+							// std::cout << "ea: " << ea * 180 / M_PI << std::endl;
+
+							// make adjoint
+							Eigen::Matrix<double, 6, 6> fVe;	// world to ee
+							Eigen::Matrix<double, 3, 3> Rzero = Eigen::Matrix<double, 3, 3>::Zero();
+							Eigen::Matrix<double, 3, 3> pR;
+							Eigen::Matrix<double, 3, 3> skew_fpe;
+							skew(fpe, skew_fpe);
+							pR = -skew_fpe * fRe.transpose();
+
+							fVe << fRe.transpose(), Rzero, pR, fRe.transpose();
+							J = fVe * J;
 
 							// Jp = L * cVe * J;
 
@@ -550,40 +804,32 @@ class Controller {
 							pinv(tempL, pinvL);
 							v_c = pinvL * error;
 
-
-							v_c(0) = 0.01;
-							v_c(1) = 0.0;
-							v_c(2) = 0;
-							v_c(3) = 0;
-							v_c(4) = 0;
-							v_c(5) = 0;
-							std::cout << "v_c(0:1): " << v_c(0) << "\t" << v_c(1) << "\t" << v_c(2) << std::endl;
+							// v_c(0) = 0.0;
+							// v_c(1) = 0.0;
+							v_c(2) = 10 * v_c(2);
+							// v_c(3) = 1*v_c(3);
+							// v_c(4) = 1*v_c(3);
+							v_c(5) = 200*v_c(5);
+							// std::cout << "v_c(0:1): " << v_c(0) << "\t" << v_c(1) << "\t" << v_c(2) << std::endl;
+							std::cout << "v_c(0:6): " << v_c.transpose() << std::endl;
 
 							double a = lambda_0 - lambda_inf;
 							double lambda = a * exp( - lambda_0l * v_c.lpNorm<Eigen::Infinity>() / a) + lambda_inf;
 
-							pinv2(J, pinvJ);							
+							pinv2(J, pinvJ);
 
 							dq_des =  lambda * pinvJ * v_c;
 							q_delta += dq_des * dt;
-							
-							std::cout << "q_delta:   ";
-							for (int i = 0; i < 7; i++) {
-								if (abs(q_delta(i)) > 1.0) {
-									q_delta(i) + copysign(1.0, q_delta(i));
-								}
-								std::cout << q_delta(i) << "\t";
-							}
-							std::cout << std::endl;
+
 
 							q_des = Q_DES_0 + q_delta;
-							tau_fb = 8 * K * (q_des - q) - 10 * B * dq;
+							tau_fb = 15 * K * (q_des - q) - 20 * B * dq;
 
-							std::cout << "tau: ";
-							for (int i = 0; i < 7; i++) {
-								std::cout << tau_fb(i) << " \t";
-							}
-							std::cout << std::endl;
+							// std::cout << "tau: ";
+							// for (int i = 0; i < 7; i++) {
+							// 	std::cout << tau_fb(i) << " \t";
+							// }
+							// std::cout << std::endl;
 
 							// Eigen::Matrix<double, 7, 7> P;
 							// P.diagonal() << 0.5, 1, 1, 1, 0.4, 0.3, 0.1;
@@ -593,7 +839,13 @@ class Controller {
                             // if ((!send_velocities) || (error.lpNorm<Eigen::Infinity>() <= 0.015)) {
 							if ((!send_velocities)) {
 								tau_fb.setZero();
-								tau_fb = 8 * K * (Q_DES_0 - q) - 10 * B * dq;								
+								if (send_velocities_init) {
+									send_velocities_init = false;
+									for (int i = 0; i < 7; i++) {
+										Q_DES_0(i) = lcm_status.joint_position_measured[i];
+									}
+								}
+								tau_fb = 10* K * (Q_DES_0 - q) - 10 * B * dq;								
                                 t0 = nowtime();
                             }
 
@@ -666,6 +918,7 @@ class Controller {
 						switch (button) {
                             case vpMouseButton::button1:
                                 send_velocities = !send_velocities;
+								send_velocities_init = true;
                                 std::cout << "Send velocities mode changed." << std::endl;
                                 break;
                             case vpMouseButton::button2:
@@ -900,6 +1153,105 @@ class Controller {
 		return 0;
 	}
 
+	int skew(Eigen::Matrix<double, 3, 1> fpe, Eigen::Matrix<double, 3, 3> &skew_fpe) {
+		skew_fpe << 0, 		-fpe(2), 	fpe(1),
+					fpe(2), 	0, 		-fpe(0),
+					-fpe(1), fpe(0), 		0;
+		return 0;
+	}
+
+	int nolibs_vel_ctrl_test() {
+		if (!lcm.good())
+			return 1;
+
+		lcm.subscribe(kLcmStatusChannel, &Controller::handleFeedbackMessage, this);
+
+		bool init = true;
+		
+		Eigen::Matrix<double, 7, 1> tau_fb; tau_fb.setZero();
+
+		Eigen::Matrix<double, 6, 7> Jacobian;
+		Eigen::Matrix<double, 7, 7> Kvc; Kvc.setZero();
+		Eigen::Matrix<double, 7, 7> Ivc; Ivc.setZero();
+		Eigen::Matrix<double, 6, 1> delta_x;
+		Eigen::Matrix<double, 7, 1> dq_des;
+		Eigen::Matrix<double, 6, 1> v_c; v_c.setZero();
+		Eigen::Matrix<double, 7,6> pinvJ;
+		Eigen::Matrix<double, 7, 1> Q_DES_0; Q_DES_0.setZero();
+		Eigen::Matrix<double, 7, 1> q_delta;
+		q_delta.setZero();
+
+
+		std::cout << "Loop started vel cart" << std::endl;
+		double t0 = nowtime();
+		double t_prev = 0;
+		while (0 == lcm.handle()) {
+			const int64_t utime = micros();
+			double t = nowtime() - t0;
+			double dt = t - t_prev;
+			t_prev = t;
+			double freq = 1.0 / dt;
+
+			if (init == true) {
+				init = false;
+				for (int i = 0; i < 7; i++) {
+					q_des(i) = lcm_status.joint_position_measured[i];
+					Q_DES_0(i) = lcm_status.joint_position_measured[i];
+				}
+			}
+
+			Eigen::Matrix<double, 6, 7> J;
+			jacobian(J, q);
+
+			Eigen::Quaterniond quat;
+			Eigen::Matrix<double, 3, 1> fpe;
+			forwarkKinematics(quat, fpe, q);
+
+			Eigen::Matrix<double, 3, 3> fRe;
+			fRe = quat.normalized().toRotationMatrix();
+
+			// test FK
+			// Eigen::Matrix<double, 3, 1> ea = fRe.eulerAngles(0, 1, 2); 
+			// std::cout << "pe: " << fpe << std::endl;
+			// std::cout << "ea: " << ea * 180 / M_PI << std::endl;
+
+			// make adjoint
+			Eigen::Matrix<double, 6, 6> fVe;	// world to ee
+			Eigen::Matrix<double, 3, 3> Rzero = Eigen::Matrix<double, 3, 3>::Zero();
+			Eigen::Matrix<double, 3, 3> pR;
+			Eigen::Matrix<double, 3, 3> skew_fpe;
+			skew(fpe, skew_fpe);
+			pR = -skew_fpe * fRe.transpose();
+			
+            // fVe << fRe, pR, Rzero, fRe;
+			// J = fVe.inverse() * J;
+
+			fVe << fRe.transpose(), Rzero, pR, fRe.transpose();
+			J = fVe * J;
+			// J = fVe.inverse() * J;
+			pinv2(J, pinvJ);
+			
+			v_c << 0.00, 0.0, 0.0, 0.00, 0.00, 0.00;
+			dq_des =  pinvJ * v_c;
+			q_delta += dq_des * dt;
+			
+			std::cout << "q_delta:   ";
+			for (int i = 0; i < 7; i++) {
+				if (abs(q_delta(i)) > 0.5) {
+					q_delta(i) + copysign(0.5, q_delta(i));
+				}
+				std::cout << q_delta(i) << "\t";
+			}
+			std::cout << std::endl;
+
+			q_des = Q_DES_0 + q_delta;
+			tau_fb = 15 * K * (q_des - q) - 10 * B * dq;
+			
+			publish(tau_fb, utime, t, dt);
+		}
+		return 0;
+	}
+
 };
 
 int main(int argc, char **argv)
@@ -907,9 +1259,9 @@ int main(int argc, char **argv)
 	std::cout << "Node started" << std::endl;
 
 	Controller controller;
-	// controller.loop_vs();
+	controller.loop_vs();
 	// controller.camera_test();
-	controller.vel_ctrl_test();
-
+	// controller.vel_ctrl_test();
+	// controller.nolibs_vel_ctrl_test();
 	return 0;
 }
