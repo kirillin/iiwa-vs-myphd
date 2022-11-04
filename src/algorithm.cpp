@@ -50,6 +50,10 @@
 
 #include "multicamera.hpp"
 
+#include <mutex>          // std::mutex
+
+
+
 using drake::lcmt_iiwa_command;
 using drake::lcmt_iiwa_status;
 
@@ -90,10 +94,17 @@ class Controller {
     Eigen::Matrix<double, 3, 3> fRe;
 
     Eigen::Matrix<double, kNumJoints, 1> tau_fb;
+    Eigen::Matrix<double, kNumJoints, 1> tau_fb0;
+    bool is_ramp = true;
+
     Eigen::Matrix<double, kNumJoints, 1> Q_DES_0;
     Eigen::Matrix<double, kNumJoints, 1> q_delta;
 	
 	MulticameraRealsense mcamera;
+
+    vpColVector taus_plot;
+
+    std::mutex mtx;
     
    public:
     Controller() {
@@ -104,7 +115,7 @@ class Controller {
 
         K.diagonal() << 2, 2, 2, 1, 0.5, 0.5, 0.25;
         B.diagonal() << 2, 2, 2, 1, 0.5, 0.5, 0.25;
-        K = K * 50;
+        K = K * 1;
         B = B * 1;
 
         // Klambda.diagonal() << 1, 1, 1, 1, 1, 1, 1, 1;
@@ -116,12 +127,14 @@ class Controller {
         q_delta.setZero();
         Q_DES_0.setZero();
         tau_fb.setZero();
+
+        taus_plot.resize(7,1,true);
     }
 
     ~Controller() {
         // stop robot any way
         if (!lcm.good())
-            std::cout << "CAN NOT STOP THE ROBOT!" << std::endl;
+            std::cout << "[~Controller()] There is a problem with lcm\n";
         lcm.subscribe(kLcmStatusChannel, &Controller::handleFeedbackMessage, this);
         if (0 == lcm.handle()) {
             const int64_t utime = utils::micros();
@@ -132,11 +145,13 @@ class Controller {
     }
 
     void handleFeedbackMessage(const lcm::ReceiveBuffer *rbuf, const std::string &chan, const drake::lcmt_iiwa_status *msg) {
+        mtx.lock();
         lcm_status = *msg;
         for (int i = 0; i < 7; i++) {
             q(i) = lcm_status.joint_position_measured[i];
             dq(i) = lcm_status.joint_velocity_estimated[i];
         }
+        mtx.unlock();
     }
 
     // void compute_error(std::vector<vpImagePoint> &ip, std::vector<vpImagePoint> &ipd, Eigen::Matrix<double, 8, 1> &error) {
@@ -183,6 +198,8 @@ class Controller {
         }
         std::cout << std::endl;
 
+        mtx.lock();
+
         lcm_command.utime = utime;
         lcm_command.num_joints = kNumJoints;
         lcm_command.num_torques = kNumJoints;
@@ -190,17 +207,18 @@ class Controller {
         lcm_command.joint_torque.resize(kNumJoints, 0);
         for (int i = 0; i < kNumJoints; i++) {
             lcm_command.joint_position[i] = lcm_status.joint_position_measured[i];
-            if (abs(tau_fb(i)) > 30) {
-                std::cout << "TORQUE UPER 30" << std::endl;
-				for (int j = 0; j < kNumJoints; j++)
+            if (abs(tau_fb(i)) > 50) {
+                std::cout << "TORQUE UPPER 50 - joint: " << i << std::endl;
+				// for (int j = 0; j < kNumJoints; j++)
                 	lcm_command.joint_torque[i] = 0;
-				break;
+				// break;
             } else {
                 lcm_command.joint_torque[i] = tau_fb[i];
             }
         }
 
         lcm.publish("IIWA_COMMAND", &lcm_command);
+        mtx.unlock();
     }
 
     void display_point_trajectory(const vpImage<unsigned char> &I, const std::vector<vpImagePoint> &vip,
@@ -234,10 +252,10 @@ class Controller {
             bool display_tag = true;
             int opt_quad_decimate = 2;
             bool opt_verbose = false;
-            bool opt_plot = true;
+            bool opt_plot = false;
             bool opt_adaptive_gain = false;
-            bool opt_task_sequencing = false;
-            double convergence_threshold = 0.00005;
+            bool opt_task_sequencing = true;
+            double convergence_threshold = 0.175;
 
 			rs2::frameset data_robot;
 			if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
@@ -313,22 +331,24 @@ class Controller {
             task.setInteractionMatrixType(vpServo::CURRENT);
 
             if (opt_adaptive_gain) {
-                vpAdaptiveGain lambda(1.5, 0.4, 30);  // lambda(0)=4, lambda(oo)=0.4 and lambda'(0)=30
+                vpAdaptiveGain lambda(0.01, 0.01, 0.1);  // lambda(0)=4, lambda(oo)=0.4 and lambda'(0)=30
                 task.setLambda(lambda);
             } else {
-                task.setLambda(0.5);
+                task.setLambda(0.008);
             }
 
             vpPlot *plotter = nullptr;
             int iter_plot = 0;
 
             if (opt_plot) {
-                plotter = new vpPlot(2, static_cast<int>(250 * 2), 500, static_cast<int>(mcamera.I_robot.getWidth()) + 80, 10,
+                plotter = new vpPlot(3, static_cast<int>(250 * 3), 500, static_cast<int>(mcamera.I_robot.getWidth()) + 80, 10,
                                      "Real time curves plotter");
                 plotter->setTitle(0, "Visual features error");
                 plotter->setTitle(1, "Camera velocities");
+                plotter->setTitle(2, "Torques");
                 plotter->initGraph(0, 8);
                 plotter->initGraph(1, 6);
+                plotter->initGraph(2, 7);
                 plotter->setLegend(0, 0, "error_feat_p1_x");
                 plotter->setLegend(0, 1, "error_feat_p1_y");
                 plotter->setLegend(0, 2, "error_feat_p2_x");
@@ -343,6 +363,13 @@ class Controller {
                 plotter->setLegend(1, 3, "wc_x");
                 plotter->setLegend(1, 4, "wc_y");
                 plotter->setLegend(1, 5, "wc_z");
+                plotter->setLegend(2, 0, "tau_1");
+                plotter->setLegend(2, 1, "tau_2");
+                plotter->setLegend(2, 2, "tau_3");
+                plotter->setLegend(2, 3, "tau_4");
+                plotter->setLegend(2, 4, "tau_5");
+                plotter->setLegend(2, 5, "tau_6");
+                plotter->setLegend(2, 6, "tau_7");
             }
 
             bool final_quit = false;
@@ -363,8 +390,7 @@ class Controller {
             double dt = 0.002;
 
             while (0 == lcm.handle() || (!has_converged && !final_quit)) {
-				std::cout << "*********\n";
-            // while (!has_converged && !final_quit) {
+
                 // timers
                 double t_start = vpTime::measureTimeMs();
                 const int64_t utime = utils::micros();  // for lcm msg
@@ -376,8 +402,10 @@ class Controller {
                     for (int i = 0; i < kNumJoints; i++) {
                         Q_DES_0(i) = q(i);
                     }
+                    q_delta.setZero();
                     is_init = false;
-					std::cout << Q_DES_0 << std::endl;
+                    is_ramp = true;
+					std::cout << "Current robot position in JS is " << Q_DES_0.transpose() << std::endl;
                 }
 
 				rs2::frameset data_robot;
@@ -399,6 +427,7 @@ class Controller {
 
                 std::vector<vpHomogeneousMatrix> cMo_vec;
                 detector.detect(mcamera.I_robot, opt_tagSize, cam, cMo_vec);
+                
 
                 {
                     std::stringstream ss;
@@ -408,162 +437,197 @@ class Controller {
 
                 vpColVector v_c(6);
 
-                // Only one tag is detected
-                if (cMo_vec.size() == 1) {
-                    cMo = cMo_vec[0];
+                if (!has_converged)  {
+                    // Only one tag is detected
+                    if (cMo_vec.size() == 1) {
+                        cMo = cMo_vec[0];
+                        
+                        // // experiment stuff
+                        // vpHomogeneousMatrix Hrot;
+                        // Hrot.buildFrom(0, 0, 0, 0, 0, -M_PI/2);
 
-                    static bool first_time = true;
-                    if (first_time) {
-                        // Introduce security wrt tag positionning in order to avoid PI rotation
-                        std::vector<vpHomogeneousMatrix> v_oMo(2), v_cdMc(2);
-                        v_oMo[1].buildFrom(0, 0, 0, 0, 0, M_PI);
-                        for (size_t i = 0; i < 2; i++) {
-                            v_cdMc[i] = cdMo * v_oMo[i] * cMo.inverse();
-                        }
-                        if (std::fabs(v_cdMc[0].getThetaUVector().getTheta()) < std::fabs(v_cdMc[1].getThetaUVector().getTheta())) {
-                            oMo = v_oMo[0];
-                        } else {
-                            std::cout << "Desired frame modified to avoid PI rotation of the camera" << std::endl;
-                            oMo = v_oMo[1];  // Introduce PI rotation
-                        }
+                        // cMo = Hrot * cMo;
 
-                        // Compute the desired position of the features from the desired pose
-                        for (size_t i = 0; i < point.size(); i++) {
-                            vpColVector cP, p_;
-                            point[i].changeFrame(cdMo * oMo, cP);
-                            point[i].projection(cP, p_);
-
-                            pd[i].set_x(p_[0]);
-                            pd[i].set_y(p_[1]);
-                            pd[i].set_Z(cP[2]);
-                        }
-                    }
-
-                    // Get tag corners
-                    std::vector<vpImagePoint> corners = detector.getPolygon(0);
-
-                    // Update visual features
-                    for (size_t i = 0; i < corners.size(); i++) {
-                        // Update the point feature from the tag corners location
-                        vpFeatureBuilder::create(p[i], cam, corners[i]);
-                        // Set the feature Z coordinate from the pose
-                        vpColVector cP;
-                        point[i].changeFrame(cMo, cP);
-
-                        p[i].set_Z(cP[2]);
-                    }
-
-                    if (opt_task_sequencing) {
-                        if (!servo_started) {
-                            if (send_velocities) {
-                                servo_started = true;
+                        static bool first_time = true;
+                        if (first_time) {
+                            // Introduce security wrt tag positionning in order to avoid PI rotation
+                            std::vector<vpHomogeneousMatrix> v_oMo(2), v_cdMc(2);
+                            v_oMo[1].buildFrom(0, 0, 0, 0, 0, M_PI);
+                            for (size_t i = 0; i < 2; i++) {
+                                v_cdMc[i] = cdMo * v_oMo[i] * cMo.inverse();
                             }
-                            t_init_servo = vpTime::measureTimeMs();
+                            if (std::fabs(v_cdMc[0].getThetaUVector().getTheta()) < std::fabs(v_cdMc[1].getThetaUVector().getTheta())) {
+                                oMo = v_oMo[0];
+                            } else {
+                                std::cout << "Desired frame modified to avoid PI rotation of the camera" << std::endl;
+                                oMo = v_oMo[1];  // Introduce PI rotation
+                            }
+
+                            // Compute the desired position of the features from the desired pose
+                            for (size_t i = 0; i < point.size(); i++) {
+                                vpColVector cP, p_;
+                                point[i].changeFrame(cdMo * oMo, cP);
+                                point[i].projection(cP, p_);
+
+                                pd[i].set_x(p_[0]);
+                                pd[i].set_y(p_[1]);
+                                pd[i].set_Z(cP[2]);
+                            }
                         }
-                        v_c = task.computeControlLaw((vpTime::measureTimeMs() - t_init_servo) / 1000.);
-                    } else {
-                        v_c = task.computeControlLaw();
-                    }
 
-                    // Display the current and desired feature points in the image display
-                    vpServoDisplay::display(task, cam, mcamera.I_robot);
-                    for (size_t i = 0; i < corners.size(); i++) {
+                        // Get tag corners
+                        std::vector<vpImagePoint> corners = detector.getPolygon(0);
+
+                        // Update visual features
+                        for (size_t i = 0; i < corners.size(); i++) {
+                            // Update the point feature from the tag corners location
+                            vpFeatureBuilder::create(p[i], cam, corners[i]);
+                            // Set the feature Z coordinate from the pose
+                            vpColVector cP;
+                            point[i].changeFrame(cMo, cP);
+
+                            p[i].set_Z(cP[2]);
+                        }
+
+                        if (opt_task_sequencing) {
+                            if (!servo_started) {
+                                if (send_velocities) {
+                                    servo_started = true;
+                                }
+                                t_init_servo = vpTime::measureTimeMs();
+                            }
+                            v_c = task.computeControlLaw((vpTime::measureTimeMs() - t_init_servo) / 1000.);
+                        } else {
+                            v_c = task.computeControlLaw();
+                        }
+
+                        // Display the current and desired feature points in the image display
+                        vpServoDisplay::display(task, cam, mcamera.I_robot);
+                        for (size_t i = 0; i < corners.size(); i++) {
+                            std::stringstream ss;
+                            ss << i;
+                            // Display current point indexes
+                            vpDisplay::displayText(mcamera.I_robot, corners[i] + vpImagePoint(15, 15), ss.str(), vpColor::red);
+                            // Display desired point indexes
+                            vpImagePoint ip;
+                            vpMeterPixelConversion::convertPoint(cam, pd[i].get_x(), pd[i].get_y(), ip);
+                            vpDisplay::displayText(mcamera.I_robot, ip + vpImagePoint(15, 15), ss.str(), vpColor::red);
+                        }
+                        if (first_time) {
+                            traj_corners = new std::vector<vpImagePoint>[corners.size()];
+                        }
+                        // Display the trajectory of the points used as features
+                        // display_point_trajectory(mcamera.I_robot, corners, traj_corners);
+
+                        // if (opt_plot) {
+                        //     plotter->plot(0, iter_plot, task.getError());
+                        //     plotter->plot(1, iter_plot, v_c);
+                        //     iter_plot++;
+                        // }
+
+                        if (opt_verbose) {
+                            std::cout << "v_c: " << v_c.t() << std::endl;
+                        }
+
+                        double error = task.getError().sumSquare();
                         std::stringstream ss;
-                        ss << i;
-                        // Display current point indexes
-                        vpDisplay::displayText(mcamera.I_robot, corners[i] + vpImagePoint(15, 15), ss.str(), vpColor::red);
-                        // Display desired point indexes
-                        vpImagePoint ip;
-                        vpMeterPixelConversion::convertPoint(cam, pd[i].get_x(), pd[i].get_y(), ip);
-                        vpDisplay::displayText(mcamera.I_robot, ip + vpImagePoint(15, 15), ss.str(), vpColor::red);
-                    }
-                    if (first_time) {
-                        traj_corners = new std::vector<vpImagePoint>[corners.size()];
-                    }
-                    // Display the trajectory of the points used as features
-                    display_point_trajectory(mcamera.I_robot, corners, traj_corners);
+                        ss << "error: " << error;
+                        vpDisplay::displayText(mcamera.I_robot, 20, static_cast<int>(mcamera.I_robot.getWidth()) - 150, ss.str(), vpColor::red);
 
+                        if (opt_verbose)
+                            std::cout << "error: " << error << std::endl;
+
+                        if (error < convergence_threshold) {
+                            has_converged = true;
+                            std::cout << "Servo task has converged"
+                                    << "\n";
+                            vpDisplay::displayText(mcamera.I_robot, 100, 20, "Servo task has converged", vpColor::red);
+                        }
+                        if (first_time) {
+                            first_time = false;
+                        }
+                    }  // end if (cMo_vec.size() == 1)
+                    else {
+                        v_c = 0;
+                    }
+
+                    if (!send_velocities) {
+                        v_c = 0;
+                    }
+
+    // set velocities
+                
+                    Eigen::Matrix<double, 6, 1> v_c_copy;
+                    for (int i = 0; i < 6; i++) {
+                        v_c_copy(i) = v_c[i];
+                    }
+                
+                    Eigen::Matrix<double, 6, 6> Projection;
+                    Projection.diagonal() << 1, 1, 0, 1, 1, 1;
+                    v_c_copy = Projection * v_c_copy;
+
+                    for (int j = 0; j < 6; j++) {
+                        if (abs(v_c_copy(j)) > 0.02) {
+                            v_c_copy(j) = copysign(0.02, v_c_copy(j));
+                        }
+                    }
+
+                    // Send to the robot
+                    set_robot_velocity(v_c_copy, t, dt, utime);
+                    
+                    
                     if (opt_plot) {
                         plotter->plot(0, iter_plot, task.getError());
                         plotter->plot(1, iter_plot, v_c);
+                        plotter->plot(2, iter_plot, taus_plot);
                         iter_plot++;
                     }
 
-                    if (opt_verbose) {
-                        std::cout << "v_c: " << v_c.t() << std::endl;
+                    std::cout << v_c_copy << std::endl;
+
+                    {
+                        std::stringstream ss;
+                        ss << v_c_copy;
+                        vpDisplay::displayText(mcamera.I_robot, 80, 20, ss.str(), vpColor::green);
                     }
 
-                    double error = task.getError().sumSquare();
-                    std::stringstream ss;
-                    ss << "error: " << error;
-                    vpDisplay::displayText(mcamera.I_robot, 20, static_cast<int>(mcamera.I_robot.getWidth()) - 150, ss.str(), vpColor::red);
-
-                    if (opt_verbose)
-                        std::cout << "error: " << error << std::endl;
-
-                    if (error < convergence_threshold) {
-                        has_converged = true;
-                        std::cout << "Servo task has converged"
-                                  << "\n";
-                        vpDisplay::displayText(mcamera.I_robot, 100, 20, "Servo task has converged", vpColor::red);
+                    {
+                        std::stringstream ss;
+                        ss << "Loop time: " << vpTime::measureTimeMs() - t_start << " ms";
+                        vpDisplay::displayText(mcamera.I_robot, 40, 20, ss.str(), vpColor::red);
                     }
-                    if (first_time) {
-                        first_time = false;
+                    vpDisplay::flush(mcamera.I_robot);
+
+                    vpMouseButton::vpMouseButtonType button;
+                    if (vpDisplay::getClick(mcamera.I_robot, button, false)) {
+                        switch (button) {
+                            case vpMouseButton::button1:
+                                send_velocities = !send_velocities;
+                                if ( abs(Q_DES_0.sum() - q.sum()) > 0.001) {
+                                    is_init = true;
+                                }							
+                                break;
+
+                            case vpMouseButton::button3:
+                                final_quit = true;
+                                v_c = 0;
+                                break;
+
+                            default:
+                                break;
+                        }
                     }
-                }  // end if (cMo_vec.size() == 1)
-                else {
-                    v_c = 0;
-                }
-
-                if (!send_velocities) {
-                    v_c = 0;
-                }
-
-// set velocities
-			
-				Eigen::Matrix<double, 6, 1> v_c_copy;
-				for (int i = 0; i < 6; i++) {
-					v_c_copy(i) = v_c[i];
-				}
-			
-				Eigen::Matrix<double, 6, 6> Projection;
-				Projection.diagonal() << 1, 0, 0, 0, 0, 0;
-				v_c_copy = Projection * v_c_copy;
-                std::cout << v_c_copy.transpose() << std::endl;
-
-                // Send to the robot
-                set_robot_velocity(v_c_copy, dt, utime);
-
-                {
-                    std::stringstream ss;
-                    ss << "Loop time: " << vpTime::measureTimeMs() - t_start << " ms";
-                    vpDisplay::displayText(mcamera.I_robot, 40, 20, ss.str(), vpColor::red);
-                }
-                vpDisplay::flush(mcamera.I_robot);
-
-                vpMouseButton::vpMouseButtonType button;
-                if (vpDisplay::getClick(mcamera.I_robot, button, false)) {
-                    switch (button) {
-                        case vpMouseButton::button1:
-                            send_velocities = !send_velocities;
-							is_init = true;
-                            break;
-
-                        case vpMouseButton::button3:
-                            final_quit = true;
-                            v_c = 0;
-                            break;
-
-                        default:
-                            break;
-                    }
+                } else {
+                    std::cout << "Converged!" << std::endl;
+                    // v_c_copy.setZero();
+                    // set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
                 }
             }
 
             std::cout << "Stop the robot " << std::endl;
 			Eigen::Matrix<double, 6, 1> v_c_copy;
 			v_c_copy.setZero();
-            set_robot_velocity(v_c_copy, 0.002, utils::micros());
+            set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
 
             if (opt_plot && plotter != nullptr) {
                 delete plotter;
@@ -593,7 +657,7 @@ class Controller {
             std::cout << "Stop the robot " << std::endl;
 			Eigen::Matrix<double, 6, 1> v_c_copy;
 			v_c_copy.setZero();
-            set_robot_velocity(v_c_copy, 0.002, utils::micros());
+            set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
             return EXIT_FAILURE;
         } catch (const std::exception &e) {
             std::cout << "Exception: " << e.what() << std::endl;
@@ -603,19 +667,21 @@ class Controller {
         return EXIT_SUCCESS;
     }
 
-    int set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_c, double dt = 0.002, int64_t utime = 0) {
+    int set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_c, double t, double dt = 0.002, int64_t utime = 0) {
         tau_fb.setZero();
-        q_delta.setZero();
-		std::cout << "publish\	n";
+
 		bool is_v_c_zero = true;
 		for (int i = 0; i < 6; i++) {
-			if (v_c(i) != 0) {
+			if (abs(v_c(i)) > 0.000001) {
 				is_v_c_zero = false;
 				break;
 			}
 		}
-		Eigen::Matrix<double, 6, 1> v_c_copy;
-		v_c_copy << 0, 0, 0, 0, 0, 0;
+
+        // Jacobian test
+		// Eigen::Matrix<double, 6, 1> v_c_copy;
+		// v_c_copy << 0.0, 0.00, 0.00, 0.1, 0.0, 0.0;
+
         if ( !is_v_c_zero ) {
 			// make adjoint
 			Eigen::Matrix<double, 6, 6> fVe;  // world to ee
@@ -627,15 +693,53 @@ class Controller {
             iiwa_kinematics::jacobian(J, q);
             J = fVe * J;
             utils::pinv2(J, pinvJ);
+
+            // test to condition number of inversed Jacobian
+            Eigen::JacobiSVD<Eigen::Matrix<double, 7, 6>> svd(pinvJ);
+            double cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size()-1);
+            if (cond > 50) {
+                std::cerr << "[ERROR] COND JACOBI: " << cond << std::endl;
+            }
 			
             // velocity kinematics
-            dq_des = pinvJ * v_c_copy;
+            dq_des = pinvJ * v_c;
             q_delta += dq_des * dt;
+
+            std::cout << q_delta.transpose() << std::endl;
+            std::cout << dq_des.transpose() << std::endl;
+            std::cout << v_c.transpose() << std::endl;
+            std::cout << cond << std::endl;
+
+        } else {
+            q_delta.setZero();
         }
 
-        q_des = Q_DES_0; // + q_delta;
-        tau_fb = 15 * K * (q_des - q) - 20 * B * dq;
-		publish(tau_fb, utime);
+        
+
+        q_des = Q_DES_0 + q_delta;
+        tau_fb = 150 * K * (q_des - q) - 10 * B * dq;
+
+        std::cout << (q_des - q).transpose() << std::endl;
+        std::cout << q_des.transpose() << std::endl;
+        std::cout << Q_DES_0.transpose() << std::endl;
+        std::cout << q_delta.transpose() << std::endl;
+        std::cout << q.transpose() << std::endl;
+
+        publish(tau_fb, utime);
+
+        for (int i = 0; i < kNumJoints; i++)
+            taus_plot[i] = tau_fb(i);
+
+        // // jerk compensation
+        // if (is_ramp) {
+        //     tau_fb0 = tau_fb;
+        //     is_ramp = false;
+        // }
+
+        // Eigen::Matrix<double, 7, 1> tau_cmd;
+        // tau_cmd = tau_fb - tau_fb0 * exp(- 4 * t);
+
+		// publish(tau_cmd, utime);
 		
 		return 0;
     }

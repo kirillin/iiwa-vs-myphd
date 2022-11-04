@@ -130,10 +130,30 @@ void MulticameraRealsense::test_2() {
     }
 }
 
-// int main(int argc, char **argv) {
-//     MulticameraRealsense mcamera;
-//     // mcamera.test_1();
-//     mcamera.test_2();
 
-//     return 0;
-// }
+/* experiment measurments emulator */
+void MulticameraRealsense::test_3() {
+    double loop_start_time = 0;
+    while (true) {
+        loop_start_time = vpTime::measureTimeMs();
+
+
+        rs2::frameset data_fly;
+        if (pipe_fly->poll_for_frames(&data_fly)) {
+            getColorFrame(data_fly.get_color_frame(), I_fly);
+            vpDisplay::display(I_fly);
+            vpDisplay::flush(I_fly);
+        }
+
+        std::cout << vpTime::measureTimeMs() - loop_start_time << std::endl;
+    }
+}
+
+int main(int argc, char **argv) {
+    MulticameraRealsense mcamera;
+    // mcamera.test_1();
+    // mcamera.test_2();
+    mcamera.test_3();
+
+    return 0;
+}
