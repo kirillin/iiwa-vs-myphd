@@ -14,6 +14,17 @@ MulticameraRealsense::MulticameraRealsense() {
     I_robot.init(100, 848);
     d_robot.init(I_robot, 50, 50, "robot_camera");
 
+    rs2::device selected_device = profile_robot->get_device();
+    auto depth_sensor = selected_device.first<rs2::depth_sensor>();
+
+    if (depth_sensor.supports(RS2_OPTION_EMITTER_ENABLED)) {
+        depth_sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0.f);
+    }
+
+    // if (depth_sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
+    // 	depth_sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, false);
+    // }
+
     // fly camera
     config_fly.enable_device(CAMERAS_SERIALS[1]);
     config_fly.disable_all_streams();
@@ -24,7 +35,9 @@ MulticameraRealsense::MulticameraRealsense() {
     auto prof_fly = profile_fly->get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
     mat_fly.create(prof_fly.height(), prof_fly.width(), CV_8UC4);
     I_fly.init(480, 640);
-    d_fly.init(I_fly, 50, 100, "fly_camera");
+    d_fly.init(I_fly, 1000, 50, "fly_camera");
+
+
 }
 
 MulticameraRealsense::~MulticameraRealsense() {
@@ -117,10 +130,10 @@ void MulticameraRealsense::test_2() {
     }
 }
 
-int main(int argc, char **argv) {
-    MulticameraRealsense mcamera;
-    // mcamera.test_1();
-    mcamera.test_2();
+// int main(int argc, char **argv) {
+//     MulticameraRealsense mcamera;
+//     // mcamera.test_1();
+//     mcamera.test_2();
 
-    return 0;
-}
+//     return 0;
+// }

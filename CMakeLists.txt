@@ -49,8 +49,9 @@ include_directories(
 # add_executable (ic src/impedance_controller_300Hz.cpp)
 # target_link_libraries (ic ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${orocos_kdl_LIBRARIES} kdl_parser urdf ${OpenCV_LIBS})
 
-add_executable (alg src/algorithm.cpp)
+add_executable (alg src/algorithm.cpp src/multicamera.cpp)
 target_link_libraries (alg ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${OpenCV_LIBS})
 
-add_executable(multicamera src/multicamera.cpp)
-target_link_libraries(multicamera ${REALSENSE2_FOUND} ${OpenCV_LIBS})
+# need to uncomment main
+# add_executable(multicamera src/multicamera.cpp)
+# target_link_libraries(multicamera ${REALSENSE2_FOUND} ${OpenCV_LIBS})

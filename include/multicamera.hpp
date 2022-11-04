@@ -13,13 +13,13 @@
 #include <opencv2/core.hpp>
 #include <vector>
 
-std::vector<std::string> CAMERAS_SERIALS{"044322070354", "944622072831"};  // robot, free
-
 /*
         Get frames from several RealSense cameras
         and puts in VISP containers.
 */
 class MulticameraRealsense : public vpRealSense2 {
+   public:
+    std::vector<std::string> CAMERAS_SERIALS{"044322070354", "944622072831"};  // robot, free
     vpRealSense2 rs_robot;
     rs2::config config_robot;
     rs2::pipeline_profile *profile_robot;
@@ -36,7 +36,6 @@ class MulticameraRealsense : public vpRealSense2 {
     vpImage<vpRGBa> I_fly;
     vpDisplayX d_fly;
 
-   public:
     MulticameraRealsense();
 
     ~MulticameraRealsense();

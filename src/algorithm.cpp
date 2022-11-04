@@ -177,11 +177,11 @@ class Controller {
 
     /* Publish command to robot */
     void publish(Eigen::Matrix<double, 7, 1> &tau_fb, int64_t utime) {
-        // std::cout << "tau_fb::";
-        // for (int i = 0; i < 7; i++) {
-        //     std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
-        // }
-        // std::cout << std::endl;
+        std::cout << "tau_fb::";
+        for (int i = 0; i < 7; i++) {
+            std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
+        }
+        std::cout << std::endl;
 
         lcm_command.utime = utime;
         lcm_command.num_joints = kNumJoints;
@@ -192,7 +192,9 @@ class Controller {
             lcm_command.joint_position[i] = lcm_status.joint_position_measured[i];
             if (abs(tau_fb(i)) > 30) {
                 std::cout << "TORQUE UPER 30" << std::endl;
-                lcm_command.joint_torque[i] = 0;
+				for (int j = 0; j < kNumJoints; j++)
+                	lcm_command.joint_torque[i] = 0;
+				break;
             } else {
                 lcm_command.joint_torque[i] = tau_fb[i];
             }
@@ -232,32 +234,33 @@ class Controller {
             bool display_tag = true;
             int opt_quad_decimate = 2;
             bool opt_verbose = false;
-            bool opt_plot = false;
+            bool opt_plot = true;
             bool opt_adaptive_gain = false;
             bool opt_task_sequencing = false;
             double convergence_threshold = 0.00005;
 
-            vpRealSense2 rs;
-            rs2::config config;
-            unsigned int width = 640, height = 480;
-            config.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGBA8, 30);
-            config.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 30);
-            config.enable_stream(RS2_STREAM_INFRARED, 640, 480, RS2_FORMAT_Y8, 30);
-            rs.open(config);
+			rs2::frameset data_robot;
+			if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
+				mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
+				vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
+				vpDisplay::display(mcamera.I_robot);
+				vpDisplay::flush(mcamera.I_robot);
+			}
+
+			rs2::frameset data_fly;
+			if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+				mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+				vpDisplay::display(mcamera.I_fly);
+				vpDisplay::flush(mcamera.I_fly);
+			}
 
             // Get camera extrinsics
             vpPoseVector ePc;
             // Set camera extrinsics default values
-            // ePc[0] = 0.0337731;
-            // ePc[1] = -0.00535012;
-            // ePc[2] = -0.0523339;
-            // ePc[3] = -0.247294;
-            // ePc[4] = -0.306729;
-            // ePc[5] = 1.53055;
-
-         	ePc[0] = 0.0;
-            ePc[1] = 0.0;
-            ePc[2] = 0.0;
+			// -0.0175, -0.08, 0.05;
+         	ePc[0] = -0.0175;
+            ePc[1] = -0.08;
+            ePc[2] = 0.05;
             ePc[3] = 0.0;
             ePc[4] = 0.0;
             ePc[5] = 0.0;
@@ -268,13 +271,13 @@ class Controller {
                       << eMc << "\n";
 
             // Get camera intrinsics
-            vpCameraParameters cam = rs.getCameraParameters(RS2_STREAM_COLOR, vpCameraParameters::perspectiveProjWithDistortion);
+            vpCameraParameters cam = mcamera.rs_robot.getCameraParameters(RS2_STREAM_INFRARED, vpCameraParameters::perspectiveProjWithDistortion);
             std::cout << "cam:\n"
                       << cam << "\n";
 
-            vpImage<unsigned char> I(height, width);
+            // vpImage<unsigned char> I(height, width);
 
-            vpDisplayX dc(I, 10, 10, "Color image");
+            // vpDisplayX dc(I, 10, 10, "Color image");
 
             vpDetectorAprilTag::vpAprilTagFamily tagFamily = vpDetectorAprilTag::TAG_36h11;
             vpDetectorAprilTag::vpPoseEstimationMethod poseEstimationMethod = vpDetectorAprilTag::HOMOGRAPHY_VIRTUAL_VS;
@@ -313,14 +316,14 @@ class Controller {
                 vpAdaptiveGain lambda(1.5, 0.4, 30);  // lambda(0)=4, lambda(oo)=0.4 and lambda'(0)=30
                 task.setLambda(lambda);
             } else {
-                task.setLambda(0.01);
+                task.setLambda(0.5);
             }
 
             vpPlot *plotter = nullptr;
             int iter_plot = 0;
 
             if (opt_plot) {
-                plotter = new vpPlot(2, static_cast<int>(250 * 2), 500, static_cast<int>(I.getWidth()) + 80, 10,
+                plotter = new vpPlot(2, static_cast<int>(250 * 2), 500, static_cast<int>(mcamera.I_robot.getWidth()) + 80, 10,
                                      "Real time curves plotter");
                 plotter->setTitle(0, "Visual features error");
                 plotter->setTitle(1, "Camera velocities");
@@ -360,6 +363,7 @@ class Controller {
             double dt = 0.002;
 
             while (0 == lcm.handle() || (!has_converged && !final_quit)) {
+				std::cout << "*********\n";
             // while (!has_converged && !final_quit) {
                 // timers
                 double t_start = vpTime::measureTimeMs();
@@ -376,17 +380,30 @@ class Controller {
 					std::cout << Q_DES_0 << std::endl;
                 }
 
-                rs.acquire(I);
+				rs2::frameset data_robot;
+				if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
+					mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
+					vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
+					// vpDisplay::display(mcamera.I_robot);
+					// vpDisplay::flush(mcamera.I_robot);
+				}
 
-                vpDisplay::display(I);
+				rs2::frameset data_fly;
+				if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+					mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+					vpDisplay::display(mcamera.I_fly);
+					vpDisplay::flush(mcamera.I_fly);
+				}
+
+                vpDisplay::display(mcamera.I_robot);
 
                 std::vector<vpHomogeneousMatrix> cMo_vec;
-                detector.detect(I, opt_tagSize, cam, cMo_vec);
+                detector.detect(mcamera.I_robot, opt_tagSize, cam, cMo_vec);
 
                 {
                     std::stringstream ss;
                     ss << "Left click to " << (send_velocities ? "stop the robot" : "servo the robot") << ", right click to quit.";
-                    vpDisplay::displayText(I, 20, 20, ss.str(), vpColor::red);
+                    vpDisplay::displayText(mcamera.I_robot, 20, 20, ss.str(), vpColor::red);
                 }
 
                 vpColVector v_c(6);
@@ -449,22 +466,22 @@ class Controller {
                     }
 
                     // Display the current and desired feature points in the image display
-                    vpServoDisplay::display(task, cam, I);
+                    vpServoDisplay::display(task, cam, mcamera.I_robot);
                     for (size_t i = 0; i < corners.size(); i++) {
                         std::stringstream ss;
                         ss << i;
                         // Display current point indexes
-                        vpDisplay::displayText(I, corners[i] + vpImagePoint(15, 15), ss.str(), vpColor::red);
+                        vpDisplay::displayText(mcamera.I_robot, corners[i] + vpImagePoint(15, 15), ss.str(), vpColor::red);
                         // Display desired point indexes
                         vpImagePoint ip;
                         vpMeterPixelConversion::convertPoint(cam, pd[i].get_x(), pd[i].get_y(), ip);
-                        vpDisplay::displayText(I, ip + vpImagePoint(15, 15), ss.str(), vpColor::red);
+                        vpDisplay::displayText(mcamera.I_robot, ip + vpImagePoint(15, 15), ss.str(), vpColor::red);
                     }
                     if (first_time) {
                         traj_corners = new std::vector<vpImagePoint>[corners.size()];
                     }
                     // Display the trajectory of the points used as features
-                    display_point_trajectory(I, corners, traj_corners);
+                    display_point_trajectory(mcamera.I_robot, corners, traj_corners);
 
                     if (opt_plot) {
                         plotter->plot(0, iter_plot, task.getError());
@@ -479,7 +496,7 @@ class Controller {
                     double error = task.getError().sumSquare();
                     std::stringstream ss;
                     ss << "error: " << error;
-                    vpDisplay::displayText(I, 20, static_cast<int>(I.getWidth()) - 150, ss.str(), vpColor::red);
+                    vpDisplay::displayText(mcamera.I_robot, 20, static_cast<int>(mcamera.I_robot.getWidth()) - 150, ss.str(), vpColor::red);
 
                     if (opt_verbose)
                         std::cout << "error: " << error << std::endl;
@@ -488,7 +505,7 @@ class Controller {
                         has_converged = true;
                         std::cout << "Servo task has converged"
                                   << "\n";
-                        vpDisplay::displayText(I, 100, 20, "Servo task has converged", vpColor::red);
+                        vpDisplay::displayText(mcamera.I_robot, 100, 20, "Servo task has converged", vpColor::red);
                     }
                     if (first_time) {
                         first_time = false;
@@ -510,7 +527,7 @@ class Controller {
 				}
 			
 				Eigen::Matrix<double, 6, 6> Projection;
-				Projection.diagonal() << 1, 1, 0, 1, 1, 1;
+				Projection.diagonal() << 1, 0, 0, 0, 0, 0;
 				v_c_copy = Projection * v_c_copy;
                 std::cout << v_c_copy.transpose() << std::endl;
 
@@ -520,12 +537,12 @@ class Controller {
                 {
                     std::stringstream ss;
                     ss << "Loop time: " << vpTime::measureTimeMs() - t_start << " ms";
-                    vpDisplay::displayText(I, 40, 20, ss.str(), vpColor::red);
+                    vpDisplay::displayText(mcamera.I_robot, 40, 20, ss.str(), vpColor::red);
                 }
-                vpDisplay::flush(I);
+                vpDisplay::flush(mcamera.I_robot);
 
                 vpMouseButton::vpMouseButtonType button;
-                if (vpDisplay::getClick(I, button, false)) {
+                if (vpDisplay::getClick(mcamera.I_robot, button, false)) {
                     switch (button) {
                         case vpMouseButton::button1:
                             send_velocities = !send_velocities;
@@ -553,21 +570,21 @@ class Controller {
                 plotter = nullptr;
             }
 
-            if (!final_quit) {
-                while (!final_quit) {
-                    rs.acquire(I);
-                    vpDisplay::display(I);
+            // if (!final_quit) {
+            //     while (!final_quit) {
+            //         // rs.acquire(I);
+            //         vpDisplay::display(I);
 
-                    vpDisplay::displayText(I, 20, 20, "Click to quit the program.", vpColor::red);
-                    vpDisplay::displayText(I, 40, 20, "Visual servo converged.", vpColor::red);
+            //         vpDisplay::displayText(I, 20, 20, "Click to quit the program.", vpColor::red);
+            //         vpDisplay::displayText(I, 40, 20, "Visual servo converged.", vpColor::red);
 
-                    if (vpDisplay::getClick(I, false)) {
-                        final_quit = true;
-                    }
+            //         if (vpDisplay::getClick(I, false)) {
+            //             final_quit = true;
+            //         }
 
-                    vpDisplay::flush(I);
-                }
-            }
+            //         vpDisplay::flush(I);
+            //     }
+            // }
             if (traj_corners) {
                 delete[] traj_corners;
             }
@@ -589,7 +606,7 @@ class Controller {
     int set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_c, double dt = 0.002, int64_t utime = 0) {
         tau_fb.setZero();
         q_delta.setZero();
-		
+		std::cout << "publish\	n";
 		bool is_v_c_zero = true;
 		for (int i = 0; i < 6; i++) {
 			if (v_c(i) != 0) {
@@ -597,7 +614,8 @@ class Controller {
 				break;
 			}
 		}
-
+		Eigen::Matrix<double, 6, 1> v_c_copy;
+		v_c_copy << 0, 0, 0, 0, 0, 0;
         if ( !is_v_c_zero ) {
 			// make adjoint
 			Eigen::Matrix<double, 6, 6> fVe;  // world to ee
@@ -611,11 +629,11 @@ class Controller {
             utils::pinv2(J, pinvJ);
 			
             // velocity kinematics
-            dq_des = pinvJ * v_c;
+            dq_des = pinvJ * v_c_copy;
             q_delta += dq_des * dt;
         }
 
-        q_des = Q_DES_0 + q_delta;
+        q_des = Q_DES_0; // + q_delta;
         tau_fb = 15 * K * (q_des - q) - 20 * B * dq;
 		publish(tau_fb, utime);
 		
