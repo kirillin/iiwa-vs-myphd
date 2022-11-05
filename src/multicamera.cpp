@@ -28,7 +28,7 @@ MulticameraRealsense::MulticameraRealsense() {
     // fly camera
     config_fly.enable_device(CAMERAS_SERIALS[1]);
     config_fly.disable_all_streams();
-    config_fly.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGBA8, 30);
+    config_fly.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGBA8, 60);
     rs_fly.open(config_fly);
     profile_fly = &rs_fly.getPipelineProfile();
     pipe_fly = &rs_fly.getPipeline();
@@ -134,17 +134,78 @@ void MulticameraRealsense::test_2() {
 /* experiment measurments emulator */
 void MulticameraRealsense::test_3() {
     double loop_start_time = 0;
+    
+    vpDisplayX d;
+    bool flag = true;
+
     while (true) {
         loop_start_time = vpTime::measureTimeMs();
-
 
         rs2::frameset data_fly;
         if (pipe_fly->poll_for_frames(&data_fly)) {
             getColorFrame(data_fly.get_color_frame(), I_fly);
-            vpDisplay::display(I_fly);
-            vpDisplay::flush(I_fly);
         }
 
+        cv::Mat image;
+        vpImageConvert::convert(I_fly, image);
+        cv::medianBlur(image, image, 7);
+        
+        // finding laser
+        cv::Mat hsv, mask;
+        cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+        cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(240,255,255), mask);
+
+        double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
+        // cv::Point matchLoc;
+        // cv::minMaxLoc(mask, &minVal, &maxVal, &minLoc, &maxLoc);
+        // cv::circle( image, maxLoc, 10, cv::Scalar(255,0,0), 3, cv::LINE_AA);
+
+        cv::Mat gray, th;
+        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+        
+        cv::adaptiveThreshold(gray, th, 200, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 3, 2);
+
+        std::vector<std::vector<cv::Point> > contours;
+        std::vector<cv::Vec4i> hierarchy;
+        cv::findContours( th, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE );
+        
+        std::vector<cv::Moments> mu(contours.size() );
+        std::vector<cv::Point2f> mc( contours.size() );
+        for( size_t i = 1; i< contours.size(); i++ )
+        {
+            cv::Scalar color = cv::Scalar( 0,255,0 );
+            cv::drawContours( image, contours, (int)i, color, 1, cv::LINE_8, hierarchy, 0 );
+            
+        }
+        // std::cout << "      " << contours.size() << std::endl;
+
+        // // finding circles
+        // cv::Mat gray;
+        // cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+        // cv::medianBlur(gray, gray, 3);
+
+        // std::vector<cv::Vec3f> circles1;
+        // cv::HoughCircles(gray, circles1, cv::HOUGH_GRADIENT, 1,
+        //             100,  // change this value to detect circles with different distances to each other
+        //             100, 30, 100, 300 // change the last two parameters
+        // );
+        // std::vector<cv::Vec3f> circles2;
+        // cv::HoughCircles(gray, circles2, cv::HOUGH_GRADIENT, 1,
+        //             100,  // change this value to detect circles with different distances to each other
+        //             100, 30, 1, 30 // change the last two parameters
+        // );
+
+        // if (circles1.size() > 0 && circles2.size() > 0 && mc.size() > 0) {
+        //     std::cout << "          " << circles1.size() << std::endl;
+        //     cv::circle( image, cv::Point(circles1[0][0], circles1[0][1]), circles1[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
+        //     cv::circle( image, cv::Point(circles2[0][0], circles2[0][1]), circles2[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
+        //     cv::circle( image, mc[0], 20, cv::Scalar(0,0,255), 3, cv::LINE_AA);
+        // }
+
+
+        cv::imshow("laser mask", mask);
+        cv::imshow("sss", image);
+        int k = cv::waitKey(1); 
         std::cout << vpTime::measureTimeMs() - loop_start_time << std::endl;
     }
 }

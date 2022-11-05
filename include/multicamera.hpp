@@ -13,6 +13,19 @@
 #include <opencv2/core.hpp>
 #include <vector>
 
+#include <visp3/gui/vpDisplayOpenCV.h>
+#include <visp3/gui/vpDisplayX.h>
+ #include <visp3/core/vpGaussianFilter.h>
+ #include <visp3/core/vpHistogram.h>
+ #include <visp3/core/vpImageConvert.h>
+ #include <visp3/core/vpImageFilter.h>
+ #include <visp3/core/vpMath.h>
+ #include <visp3/imgproc/vpImgproc.h>
+
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+
 /*
         Get frames from several RealSense cameras
         and puts in VISP containers.

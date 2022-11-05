@@ -53,5 +53,9 @@ include_directories(
 # target_link_libraries (alg ${fri_client_library} ${LCM_NAMESPACE}lcm ${gflags_LIBRARIES} drake::drake-lcmtypes-cpp Eigen3::Eigen ${REALSENSE2_FOUND} ${OpenCV_LIBS})
 
 # need to uncomment main
-add_executable(multicamera src/multicamera.cpp)
-target_link_libraries(multicamera ${REALSENSE2_FOUND} ${OpenCV_LIBS})
+# add_executable(multicamera src/multicamera.cpp)
+# target_link_libraries(multicamera ${REALSENSE2_FOUND} ${OpenCV_LIBS})
+
+# need to uncomment main
+add_executable(emulator src/fine_measuarments_emulator.cpp)
+# target_link_libraries(emulator ${REALSENSE2_FOUND} ${OpenCV_LIBS})
