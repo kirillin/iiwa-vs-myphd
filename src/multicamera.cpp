@@ -210,11 +210,11 @@ void MulticameraRealsense::test_3() {
     }
 }
 
-int main(int argc, char **argv) {
-    MulticameraRealsense mcamera;
-    // mcamera.test_1();
-    // mcamera.test_2();
-    mcamera.test_3();
+// int main(int argc, char **argv) {
+//     MulticameraRealsense mcamera;
+//     // mcamera.test_1();
+//     // mcamera.test_2();
+//     mcamera.test_3();
 
-    return 0;
-}
+//     return 0;
+// }

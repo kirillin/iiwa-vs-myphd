@@ -36,6 +36,7 @@
 #include <iostream>
 #include <lcm/lcm-cpp.hpp>
 #include <map>
+#include <mutex>  // std::mutex
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <thread>
@@ -48,12 +49,6 @@
 #include "multicamera.hpp"
 #include "utils.hpp"
 
-#include "multicamera.hpp"
-
-#include <mutex>          // std::mutex
-
-
-
 using drake::lcmt_iiwa_command;
 using drake::lcmt_iiwa_status;
 
@@ -65,6 +60,12 @@ typedef Eigen::Matrix<double, kNumJoints, 1> Vector7d;
 typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
 class Controller {
+    std::ofstream log_file;
+    double t_ramp;
+    double t_ramp0;
+    bool init_ramp;
+    int ramp_state;
+    
     bool DEBUG = true;
     bool is_init = true;
 
@@ -95,26 +96,51 @@ class Controller {
 
     Eigen::Matrix<double, kNumJoints, 1> tau_fb;
     Eigen::Matrix<double, kNumJoints, 1> tau_fb0;
+    Eigen::Matrix<double, kNumJoints, 1> tau_fb_prev;
     bool is_ramp = true;
 
     Eigen::Matrix<double, kNumJoints, 1> Q_DES_0;
     Eigen::Matrix<double, kNumJoints, 1> q_delta;
-	
-	MulticameraRealsense mcamera;
+    Eigen::Matrix<double, kNumJoints, 1> q_delta_prev;
+
+    Eigen::Matrix<double, kNumJoints, 1> ramp_q_des_0;
+    Eigen::Matrix<double, kNumJoints, 1> q_des_prev;
+    
+    Eigen::Matrix<double, kNumJoints, 1> q_error;    
+    Eigen::Matrix<double, kNumJoints, 1> ramp_q_error;    
+    
+
+    MulticameraRealsense mcamera;
 
     vpColVector taus_plot;
 
     std::mutex mtx;
     
+
    public:
     Controller() {
+        log_file.open("log_control.txt");
+        
+        q_error.setZero();
+        ramp_q_error.setZero();
+        ramp_state = 0;
+        tau_fb_prev.setZero();
+        tau_fb0.setZero();
+
+        ramp_q_des_0.setZero();
+        q_des_prev.setZero();
+
+        t_ramp = 0;
+        t_ramp0 = 0;
+        bool init_ramp = false;
+
         q.setZero();
         dq.setZero();
         K.setZero();
         B.setZero();
 
-        K.diagonal() << 2, 2, 2, 1, 0.5, 0.5, 0.25;
-        B.diagonal() << 2, 2, 2, 1, 0.5, 0.5, 0.25;
+        K.diagonal() << 2, 3, 1, 2, 0.2, 0.1, 0.1;
+        B.diagonal() << 2, 3, 1, 2, 0.2, 0.1, 0.1;
         K = K * 1;
         B = B * 1;
 
@@ -128,10 +154,12 @@ class Controller {
         Q_DES_0.setZero();
         tau_fb.setZero();
 
-        taus_plot.resize(7,1,true);
+        taus_plot.resize(7, 1, true);
     }
 
     ~Controller() {
+        log_file.close();
+
         // stop robot any way
         if (!lcm.good())
             std::cout << "[~Controller()] There is a problem with lcm\n";
@@ -192,13 +220,13 @@ class Controller {
 
     /* Publish command to robot */
     void publish(Eigen::Matrix<double, 7, 1> &tau_fb, int64_t utime) {
-        std::cout << "tau_fb::";
-        for (int i = 0; i < 7; i++) {
-            std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
-        }
-        std::cout << std::endl;
+        // std::cout << "tau_fb::";
+        // for (int i = 0; i < 7; i++) {
+        //     std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
+        // }
+        // std::cout << std::endl;
 
-        mtx.lock();
+        // mtx.lock();
 
         lcm_command.utime = utime;
         lcm_command.num_joints = kNumJoints;
@@ -209,15 +237,16 @@ class Controller {
             lcm_command.joint_position[i] = lcm_status.joint_position_measured[i];
             if (abs(tau_fb(i)) > 50) {
                 std::cout << "TORQUE UPPER 50 - joint: " << i << std::endl;
-				// for (int j = 0; j < kNumJoints; j++)
-                	lcm_command.joint_torque[i] = 0;
-				// break;
+                // for (int j = 0; j < kNumJoints; j++)
+                lcm_command.joint_torque[i] = 0;
+                // break;
             } else {
                 lcm_command.joint_torque[i] = tau_fb[i];
             }
         }
 
         lcm.publish("IIWA_COMMAND", &lcm_command);
+
         mtx.unlock();
     }
 
@@ -257,32 +286,31 @@ class Controller {
             bool opt_task_sequencing = true;
             double convergence_threshold = 0.175;
 
-			rs2::frameset data_robot;
-			if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
-				mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
-				vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
-				vpDisplay::display(mcamera.I_robot);
-				vpDisplay::flush(mcamera.I_robot);
-			}
+            rs2::frameset data_robot;
+            if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
+                mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
+                vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
+                vpDisplay::display(mcamera.I_robot);
+                vpDisplay::flush(mcamera.I_robot);
+            }
 
-			rs2::frameset data_fly;
-			if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
-				mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
-				vpDisplay::display(mcamera.I_fly);
-				vpDisplay::flush(mcamera.I_fly);
-			}
+            rs2::frameset data_fly;
+            if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+                mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+                vpDisplay::display(mcamera.I_fly);
+                vpDisplay::flush(mcamera.I_fly);
+            }
 
             // Get camera extrinsics
             vpPoseVector ePc;
             // Set camera extrinsics default values
-			// -0.0175, -0.08, 0.05;
-         	ePc[0] = -0.0175;
+            // -0.0175, -0.08, 0.05;
+            ePc[0] = -0.0175;
             ePc[1] = -0.08;
             ePc[2] = 0.05;
             ePc[3] = 0.0;
             ePc[4] = 0.0;
             ePc[5] = 0.0;
-
 
             vpHomogeneousMatrix eMc(ePc);
             std::cout << "eMc:\n"
@@ -373,7 +401,8 @@ class Controller {
             }
 
             bool final_quit = false;
-            bool has_converged = false;
+            // convergence!
+            bool has_converged = true;
             bool send_velocities = false;
             bool servo_started = false;
             std::vector<vpImagePoint> *traj_corners = nullptr;  // To memorize point trajectory
@@ -385,16 +414,20 @@ class Controller {
             std::cout << "Init completed!\n";
 
             double t = 0;
-			double t0 = utils::nowtime();
+            double t0 = utils::nowtime();
             double t_prev = 0;
             double dt = 0.002;
 
-            while (0 == lcm.handle() || (!has_converged && !final_quit)) {
+            bool is_init_state_1 = false;
 
+            //////////////////////
+            //////////////////////
+            //////////////////////
+            while (0 == lcm.handle() || (!has_converged && !final_quit)) {
                 // timers
                 double t_start = vpTime::measureTimeMs();
                 const int64_t utime = utils::micros();  // for lcm msg
-                t = utils::nowtime() - t0;       // for control system
+                t = utils::nowtime() - t0;              // for control system
                 dt = t - t_prev;
                 t_prev = t;
 
@@ -405,29 +438,28 @@ class Controller {
                     q_delta.setZero();
                     is_init = false;
                     is_ramp = true;
-					std::cout << "Current robot position in JS is " << Q_DES_0.transpose() << std::endl;
+                    std::cout << "Current robot position in JS is " << Q_DES_0.transpose() << std::endl;
                 }
 
-				rs2::frameset data_robot;
-				if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
-					mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
-					vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
-					// vpDisplay::display(mcamera.I_robot);
-					// vpDisplay::flush(mcamera.I_robot);
-				}
+                rs2::frameset data_robot;
+                if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
+                    mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
+                    vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
+                    // vpDisplay::display(mcamera.I_robot);
+                    // vpDisplay::flush(mcamera.I_robot);
+                }
 
-				rs2::frameset data_fly;
-				if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
-					mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
-					vpDisplay::display(mcamera.I_fly);
-					vpDisplay::flush(mcamera.I_fly);
-				}
+                rs2::frameset data_fly;
+                if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+                    mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+                    vpDisplay::display(mcamera.I_fly);
+                    vpDisplay::flush(mcamera.I_fly);
+                }
 
                 vpDisplay::display(mcamera.I_robot);
 
                 std::vector<vpHomogeneousMatrix> cMo_vec;
                 detector.detect(mcamera.I_robot, opt_tagSize, cam, cMo_vec);
-                
 
                 {
                     std::stringstream ss;
@@ -437,11 +469,11 @@ class Controller {
 
                 vpColVector v_c(6);
 
-                if (!has_converged)  {
+                if (!has_converged) {
                     // Only one tag is detected
                     if (cMo_vec.size() == 1) {
                         cMo = cMo_vec[0];
-                        
+
                         // // experiment stuff
                         // vpHomogeneousMatrix Hrot;
                         // Hrot.buildFrom(0, 0, 0, 0, 0, -M_PI/2);
@@ -540,7 +572,7 @@ class Controller {
                         if (error < convergence_threshold) {
                             has_converged = true;
                             std::cout << "Servo task has converged"
-                                    << "\n";
+                                      << "\n";
                             vpDisplay::displayText(mcamera.I_robot, 100, 20, "Servo task has converged", vpColor::red);
                         }
                         if (first_time) {
@@ -555,13 +587,13 @@ class Controller {
                         v_c = 0;
                     }
 
-    // set velocities
-                
+                    // set velocities
+
                     Eigen::Matrix<double, 6, 1> v_c_copy;
                     for (int i = 0; i < 6; i++) {
                         v_c_copy(i) = v_c[i];
                     }
-                
+
                     Eigen::Matrix<double, 6, 6> Projection;
                     Projection.diagonal() << 1, 1, 0, 1, 1, 1;
                     v_c_copy = Projection * v_c_copy;
@@ -574,8 +606,7 @@ class Controller {
 
                     // Send to the robot
                     set_robot_velocity(v_c_copy, t, dt, utime);
-                    
-                    
+
                     if (opt_plot) {
                         plotter->plot(0, iter_plot, task.getError());
                         plotter->plot(1, iter_plot, v_c);
@@ -603,9 +634,9 @@ class Controller {
                         switch (button) {
                             case vpMouseButton::button1:
                                 send_velocities = !send_velocities;
-                                if ( abs(Q_DES_0.sum() - q.sum()) > 0.001) {
+                                if (abs(Q_DES_0.sum() - q.sum()) > 0.001) {
                                     is_init = true;
-                                }							
+                                }
                                 break;
 
                             case vpMouseButton::button3:
@@ -619,14 +650,19 @@ class Controller {
                     }
                 } else {
                     std::cout << "Converged!" << std::endl;
-                    // v_c_copy.setZero();
-                    // set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
+                    if (!is_init_state_1) {
+                        double t0 = utils::nowtime();
+                        is_init_state_1 = true;
+                    }
+                    Eigen::Matrix<double, 6, 1> v_c_copy;
+                    v_c_copy.setZero();
+                    set_robot_velocity(v_c_copy, t, dt, utils::micros());
                 }
             }
 
             std::cout << "Stop the robot " << std::endl;
-			Eigen::Matrix<double, 6, 1> v_c_copy;
-			v_c_copy.setZero();
+            Eigen::Matrix<double, 6, 1> v_c_copy;
+            v_c_copy.setZero();
             set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
 
             if (opt_plot && plotter != nullptr) {
@@ -655,8 +691,8 @@ class Controller {
         } catch (const vpException &e) {
             std::cout << "ViSP exception: " << e.what() << std::endl;
             std::cout << "Stop the robot " << std::endl;
-			Eigen::Matrix<double, 6, 1> v_c_copy;
-			v_c_copy.setZero();
+            Eigen::Matrix<double, 6, 1> v_c_copy;
+            v_c_copy.setZero();
             set_robot_velocity(v_c_copy, 0, 0.002, utils::micros());
             return EXIT_FAILURE;
         } catch (const std::exception &e) {
@@ -670,21 +706,24 @@ class Controller {
     int set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_c, double t, double dt = 0.002, int64_t utime = 0) {
         tau_fb.setZero();
 
-		bool is_v_c_zero = true;
-		for (int i = 0; i < 6; i++) {
-			if (abs(v_c(i)) > 0.000001) {
-				is_v_c_zero = false;
-				break;
-			}
-		}
+        bool is_v_c_zero = true;
+        for (int i = 0; i < 6; i++) {
+            if (abs(v_c(i)) > 0.000001) {
+                is_v_c_zero = false;
+                break;
+            }
+        }
 
         // Jacobian test
-		// Eigen::Matrix<double, 6, 1> v_c_copy;
-		// v_c_copy << 0.0, 0.00, 0.00, 0.1, 0.0, 0.0;
+        Eigen::Matrix<double, 6, 1> v_c_copy;
 
-        if ( !is_v_c_zero ) {
-			// make adjoint
-			Eigen::Matrix<double, 6, 6> fVe;  // world to ee
+        // v_c_copy << 0.0, 0.00, 0.00, 0.00, change_sign * 0.08, 0.00;
+        v_c_copy << 0.0, 0.00, 0.00, 0.00, 0.08 * sin(0.5 * t), 0.00;
+        is_v_c_zero = false;
+
+        if (!is_v_c_zero) {
+            // make adjoint
+            Eigen::Matrix<double, 6, 6> fVe;  // world to ee
             iiwa_kinematics::forwarkKinematics(quat, fpe, q);
             fRe = quat.normalized().toRotationMatrix();
             utils::make_adjoint(fVe, fpe, fRe);
@@ -696,34 +735,25 @@ class Controller {
 
             // test to condition number of inversed Jacobian
             Eigen::JacobiSVD<Eigen::Matrix<double, 7, 6>> svd(pinvJ);
-            double cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size()-1);
+            double cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size() - 1);
             if (cond > 50) {
                 std::cerr << "[ERROR] COND JACOBI: " << cond << std::endl;
             }
-			
-            // velocity kinematics
-            dq_des = pinvJ * v_c;
-            q_delta += dq_des * dt;
 
-            std::cout << q_delta.transpose() << std::endl;
-            std::cout << dq_des.transpose() << std::endl;
-            std::cout << v_c.transpose() << std::endl;
-            std::cout << cond << std::endl;
+            // velocity kinematics
+            dq_des = pinvJ * v_c_copy;
+            // dq_des = pinvJ * v_c;
+            q_delta += dq_des * dt;
 
         } else {
             q_delta.setZero();
         }
 
-        
+        // q_delta.setZero();
+        q_des = Q_DES_0;  // + q_delta;
+        tau_fb = 1000 * K * (q_des - q) - 20 * B * dq;
 
-        q_des = Q_DES_0 + q_delta;
-        tau_fb = 150 * K * (q_des - q) - 10 * B * dq;
-
-        std::cout << (q_des - q).transpose() << std::endl;
-        std::cout << q_des.transpose() << std::endl;
-        std::cout << Q_DES_0.transpose() << std::endl;
-        std::cout << q_delta.transpose() << std::endl;
-        std::cout << q.transpose() << std::endl;
+        log_file << tau_fb.transpose() << " " << (q_des - q).transpose() << " " << dq.transpose() << " " << q_delta.transpose() << " " << t << "\n";
 
         publish(tau_fb, utime);
 
@@ -739,9 +769,215 @@ class Controller {
         // Eigen::Matrix<double, 7, 1> tau_cmd;
         // tau_cmd = tau_fb - tau_fb0 * exp(- 4 * t);
 
-		// publish(tau_cmd, utime);
-		
-		return 0;
+        // publish(tau_cmd, utime);
+
+        return 0;
+    }
+
+    int test_set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_c, double t, double dt = 0.002, int64_t utime = 0) {
+        tau_fb.setZero();
+
+        /* stabilisation test*/
+        // {
+        //     q_des = Q_DES_0;
+        //     tau_fb = 700 * K * (q_des - q) - 40 * B * dq;
+        // }
+
+        /* low speed traking test*/
+        // {
+        //     q_delta << 0, 0, 0, 0, 0, 0.4 * sin(t), 0;
+        //     q_des = Q_DES_0 + q_delta;
+        //     tau_fb = 700 * K * (q_des - q) - 40 * B * dq;
+        // }
+
+        /* low speed traking test 2*/
+        // {
+        //     q_delta << 0, 0, 0, 0, 0, 0.4 * sin(t), 0.4 * sin(t);
+        //     q_des = Q_DES_0 + q_delta;
+        //     tau_fb = 700 * K * (q_des - q) - 40 * B * dq;
+        // }
+
+        /* add big delta to `q` test*/
+        // {
+        //     q_delta << 0, 0, 0, 0, 0, 0.5, 0;
+        //     q_des = Q_DES_0 + q_delta;
+        //     tau_fb = 700 * K * (q_des - q) - 40 * B * dq;
+        // }
+
+
+        /**/
+        /* Add big delta to `q` with "ramped" `q_des` test*/
+        /**/
+        // {
+        //     std::stringstream ss; ss << t << "(ramp_state: "<< ramp_state << ")\t";
+        //     q_delta << 0, 0, 0, 0, 0, 1.0, 0;
+        //     q_des = Q_DES_0 + q_delta;
+        //     q_error = q_des - q;
+        //     // int ramp_state = 0; // [0, 1, 2] -- no ramp, init, ramp -- it's a global variable
+
+        //     // check if q_error too big, then turn off ramp
+        //     for (int i = 0; i < kNumJoints; i++) {
+        //         // if ((tau_fb(i) - tau_fb_prev(i)) > 3.0) {
+        //         if ((abs(q_error[i]) > 0.3) && ramp_state == 0 ) { // (t - t_ramp > 2.0)WARNING: hardcoded `5` depends to exponentiol ramp parameter
+        //             // init_ramp = true;
+        //             ramp_state = 1;
+        //             ss << "too big q detected (0) \t";
+        //             break;
+        //         }
+        //     }
+
+        //     // initialize ramp parameters
+        //     if (ramp_state == 1) {
+        //         ss << "ramp init (1)\t";
+        //         ramp_q_error = q_des - q;
+        //         t_ramp0 = t;
+        //         Eigen::Matrix<double, 7, 1> t_ramp_vec;
+        //         t_ramp = -999;
+        //         for (int i = 0; i < kNumJoints; i++) {
+        //             double val = ((q_des(i) - q(i)) / ramp_q_error(i));
+        //             if (val > 0) {
+        //                 t_ramp_vec(i) =  log(val) / 6;
+        //             } else {
+        //                 t_ramp_vec(i) = 2.0; // WARNING: what if `val` is negative? check it!
+        //             }
+        //             if (t_ramp < t_ramp_vec(i)) {
+        //                     t_ramp = t_ramp_vec(i);
+        //             }
+        //         }
+        //         ramp_state = 2;
+        //         // init_ramp = false;
+        //     }
+
+        //     if (ramp_state == 2) {
+        //         if (t - t_ramp0 > t_ramp) {
+        //             ramp_state = 0;
+        //             ss << "ramp_state -> 0 \t";
+        //         }
+                
+        //         q_error = q_des - q - ramp_q_error * exp( -6 * (t - t_ramp0)); // `1`-`1.5` seconds smoth increasing (bigger value`6` -> larger smooth transietn)
+        //     }
+            
+        //     // q_des_prev = q_des;
+
+        //     // ss << "compute control\t\n";
+        //     tau_fb = 700 * K * q_error - 40 * B * dq;
+        //     std::cout << ss.str() << std::endl;
+        // }
+
+        /**/
+        /* Cartesian velocity with last works test*/
+        /**/
+        {
+            // std::stringstream ss; ss << t << "(ramp_state: "<< ramp_state << ")\t";
+            Eigen::Matrix<double, 6, 1> v_c;
+
+            v_c << 0.0, 0.0, 0.0, 0.3 * sin(t), 0.3 * cos(t), 0.0;
+
+            // make adjoint
+            Eigen::Matrix<double, 6, 6> fVe;  // world to ee
+            iiwa_kinematics::forwarkKinematics(quat, fpe, q);
+            fRe = quat.normalized().toRotationMatrix();
+            utils::make_adjoint(fVe, fpe, fRe);
+
+            // get J w.r.t ee and inverse it
+            iiwa_kinematics::jacobian(J, q);
+            J = fVe * J;
+            utils::pinv2(J, pinvJ);
+
+            // test to condition number of inversed Jacobian
+            Eigen::JacobiSVD<Eigen::Matrix<double, 7, 6>> svd(pinvJ);
+            double cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size() - 1);
+            if (cond > 20) {
+                std::cerr << "[ERROR] COND JACOBI: " << cond << std::endl;
+            }
+
+            // velocity kinematics
+            dq_des = pinvJ * v_c;
+            q_delta += dq_des * dt;
+
+            q_des = Q_DES_0 + q_delta;
+            q_error = q_des - q;
+            // int ramp_state = 0; // [0, 1, 2] -- no ramp, init, ramp -- it's a global variable
+
+            // check if q_error too big, then turn off ramp
+            for (int i = 0; i < kNumJoints; i++) {
+                // if ((tau_fb(i) - tau_fb_prev(i)) > 3.0) {
+                if ((abs(q_error[i]) > 0.3) && ramp_state == 0 ) { // (t - t_ramp > 2.0)WARNING: hardcoded `5` depends to exponentiol ramp parameter
+                    // init_ramp = true;
+                    ramp_state = 1;
+                    break;
+                }
+            }
+
+            // initialize ramp parameters
+            if (ramp_state == 1) {
+                ramp_q_error = q_des - q;
+                t_ramp0 = t;
+                Eigen::Matrix<double, 7, 1> t_ramp_vec;
+                t_ramp = -999;
+                for (int i = 0; i < kNumJoints; i++) {
+                    double val = ((q_des(i) - q(i)) / ramp_q_error(i));
+                    if (val > 0) {
+                        t_ramp_vec(i) =  log(val) / 6;
+                    } else {
+                        t_ramp_vec(i) = 2.0; // WARNING: what if `val` is negative? check it!
+                    }
+                    if (t_ramp < t_ramp_vec(i)) {
+                            t_ramp = t_ramp_vec(i);
+                    }
+                }
+                ramp_state = 2;
+                // init_ramp = false;
+            }
+
+            if (ramp_state == 2) {
+                if (t - t_ramp0 > t_ramp) {
+                    ramp_state = 0;
+                }
+                q_error = q_des - q - ramp_q_error * exp( -6 * (t - t_ramp0)); // `1`-`1.5` seconds smoth increasing (bigger value`6` -> larger smooth transietn)
+            }
+            
+            tau_fb = 700 * K * q_error - 40 * B * dq;
+        }
+
+
+        
+        log_file << tau_fb.transpose() << " " << q_error.transpose() << " " << dq.transpose() << " " << q_delta.transpose() << " " << t << "\n";
+        publish(tau_fb, utime);
+
+        return 0;
+    }
+
+    void test_ctrl() {
+        if (!lcm.good())
+            std::cout << "!!!!!!!!!!";
+
+        lcm.subscribe(kLcmStatusChannel, &Controller::handleFeedbackMessage, this);
+
+        bool init = true;
+
+        std::cout << "Loop started vel cart" << std::endl;
+        double t0 = utils::nowtime();
+        double t_prev = 0;
+        while (0 == lcm.handle()) {
+            const int64_t utime = utils::micros();
+            double t = utils::nowtime() - t0;
+            double dt = t - t_prev;
+            t_prev = t;
+            double freq = 1.0 / dt;
+
+            if (init == true) {
+                init = false;
+                for (int i = 0; i < 7; i++) {
+                    q_des(i) = lcm_status.joint_position_measured[i];
+                    Q_DES_0(i) = lcm_status.joint_position_measured[i];
+                }
+                q_des_prev= Q_DES_0;
+            }
+            Eigen::Matrix<double, 6, 1> v_c_copy;
+            v_c_copy.setZero();
+            test_set_robot_velocity(v_c_copy, t, dt, utils::micros());
+        }
     }
 };
 
@@ -750,7 +986,8 @@ int main(int argc, char **argv) {
 
     Controller controller;
     // controller.loop_vs();
-    controller.loop_vs_april();
+    // controller.loop_vs_april();
+    controller.test_ctrl();
 
     return 0;
 }

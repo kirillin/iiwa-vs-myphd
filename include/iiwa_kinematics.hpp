@@ -20,7 +20,8 @@ static struct Parameters {
         l_1z = 0.360;
         l_3z = 0.420;
         l_5z = 0.400;
-        l_7z = 0.126;
+        // l_7z = 0.126;
+        l_7z = 0.226;
     }
 } P;
 
