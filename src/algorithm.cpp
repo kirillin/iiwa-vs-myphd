@@ -45,6 +45,7 @@
 
 #include "drake/lcmt_iiwa_command.hpp"
 #include "drake/lcmt_iiwa_status.hpp"
+
 #include "iiwa_kinematics.hpp"
 #include "multicamera.hpp"
 #include "utils.hpp"
