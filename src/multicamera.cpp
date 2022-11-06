@@ -1,4 +1,5 @@
 #include "multicamera.hpp"
+#include <opencv2/features2d.hpp>
 
 MulticameraRealsense::MulticameraRealsense() {
     // robot camera
@@ -136,11 +137,23 @@ void MulticameraRealsense::test_3() {
     double loop_start_time = 0;
     
     vpDisplayX d;
-    bool flag = true;
 
-    while (true) {
-        loop_start_time = vpTime::measureTimeMs();
+    double center_x = 0;
+    double center_y = 0;
+    double radius_small = 0;
+    double radius_big = 0;
 
+    double num_circles_1 = 0;
+    double num_circles_2 = 0;
+
+
+    double t0 = vpTime::measureTimeSecond();
+    double t = 0;
+    double initialisation_time = 5;
+
+    while (t < initialisation_time) {
+        t = vpTime::measureTimeSecond() - t0;
+        
         rs2::frameset data_fly;
         if (pipe_fly->poll_for_frames(&data_fly)) {
             getColorFrame(data_fly.get_color_frame(), I_fly);
@@ -150,64 +163,115 @@ void MulticameraRealsense::test_3() {
         vpImageConvert::convert(I_fly, image);
         cv::medianBlur(image, image, 7);
         
-        // finding laser
-        cv::Mat hsv, mask;
-        cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
-        cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(240,255,255), mask);
+        // // finding laser
+        // cv::Mat hsv, mask;
+        // cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+        // cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(240,255,255), mask);
 
-        double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-        // cv::Point matchLoc;
-        // cv::minMaxLoc(mask, &minVal, &maxVal, &minLoc, &maxLoc);
-        // cv::circle( image, maxLoc, 10, cv::Scalar(255,0,0), 3, cv::LINE_AA);
+        // double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
+        // // cv::Point matchLoc;
+        // // cv::minMaxLoc(mask, &minVal, &maxVal, &minLoc, &maxLoc);
+        // // cv::circle( image, maxLoc, 10, cv::Scalar(255,0,0), 3, cv::LINE_AA);
 
-        cv::Mat gray, th;
-        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-        
-        cv::adaptiveThreshold(gray, th, 200, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 3, 2);
-
-        std::vector<std::vector<cv::Point> > contours;
-        std::vector<cv::Vec4i> hierarchy;
-        cv::findContours( th, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE );
-        
-        std::vector<cv::Moments> mu(contours.size() );
-        std::vector<cv::Point2f> mc( contours.size() );
-        for( size_t i = 1; i< contours.size(); i++ )
-        {
-            cv::Scalar color = cv::Scalar( 0,255,0 );
-            cv::drawContours( image, contours, (int)i, color, 1, cv::LINE_8, hierarchy, 0 );
-            
-        }
-        // std::cout << "      " << contours.size() << std::endl;
-
-        // // finding circles
-        // cv::Mat gray;
+        // cv::Mat gray, th;
         // cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-        // cv::medianBlur(gray, gray, 3);
+        
+        // cv::adaptiveThreshold(gray, th, 200, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 3, 2);
 
-        // std::vector<cv::Vec3f> circles1;
-        // cv::HoughCircles(gray, circles1, cv::HOUGH_GRADIENT, 1,
-        //             100,  // change this value to detect circles with different distances to each other
-        //             100, 30, 100, 300 // change the last two parameters
-        // );
-        // std::vector<cv::Vec3f> circles2;
-        // cv::HoughCircles(gray, circles2, cv::HOUGH_GRADIENT, 1,
-        //             100,  // change this value to detect circles with different distances to each other
-        //             100, 30, 1, 30 // change the last two parameters
-        // );
-
-        // if (circles1.size() > 0 && circles2.size() > 0 && mc.size() > 0) {
-        //     std::cout << "          " << circles1.size() << std::endl;
-        //     cv::circle( image, cv::Point(circles1[0][0], circles1[0][1]), circles1[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
-        //     cv::circle( image, cv::Point(circles2[0][0], circles2[0][1]), circles2[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
-        //     cv::circle( image, mc[0], 20, cv::Scalar(0,0,255), 3, cv::LINE_AA);
+        // std::vector<std::vector<cv::Point> > contours;
+        // std::vector<cv::Vec4i> hierarchy;
+        // cv::findContours( th, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE );
+        
+        // std::vector<cv::Moments> mu(contours.size() );
+        // std::vector<cv::Point2f> mc( contours.size() );
+        // for( size_t i = 1; i< contours.size(); i++ )
+        // {
+        //     cv::Scalar color = cv::Scalar( 0,255,0 );
+        //     cv::drawContours( image, contours, (int)i, color, 1, cv::LINE_8, hierarchy, 0 );
+            
         // }
+        // // std::cout << "      " << contours.size() << std::endl;
 
+        // finding circles
+        cv::Mat gray;
+        cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+        cv::medianBlur(gray, gray, 3);
 
-        cv::imshow("laser mask", mask);
+        std::vector<cv::Vec3f> circles1;
+        cv::HoughCircles(gray, circles1, cv::HOUGH_GRADIENT, 1,
+                    100,  // change this value to detect circles with different distances to each other
+                    100, 30, 100, 300 // change the last two parameters
+        );
+        std::vector<cv::Vec3f> circles2;
+        cv::HoughCircles(gray, circles2, cv::HOUGH_GRADIENT, 1,
+                    100,  // change this value to detect circles with different distances to each other
+                    100, 30, 1, 30 // change the last two parameters
+        );
+
+        if (circles1.size() > 0 && circles2.size() > 0) {
+
+            center_x += circles1[0][0] + circles2[0][0];
+            center_y += circles1[0][1] + circles2[0][1];
+
+            radius_big += circles1[0][2];
+            radius_small += circles2[0][2];
+
+            cv::circle( image, cv::Point(circles1[0][0], circles1[0][1]), circles1[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
+            cv::circle( image, cv::Point(circles2[0][0], circles2[0][1]), circles2[0][2], cv::Scalar(0,255,0), 1, cv::LINE_AA);
+        }
+        num_circles_1 += circles1.size();
+        num_circles_2 += circles2.size();
+
         cv::imshow("sss", image);
         int k = cv::waitKey(1); 
-        std::cout << vpTime::measureTimeMs() - loop_start_time << std::endl;
     }
+
+    center_x = center_x / (num_circles_1 + num_circles_2);
+    center_y = center_y / (num_circles_1 + num_circles_2);
+    radius_big = radius_big / num_circles_1;
+    radius_small = radius_small / num_circles_2;
+
+
+    int x_blob, y_blob; // global vars
+
+    // main control loop with time = \approx 1.5 ms
+    while (true) {
+        loop_start_time = vpTime::measureTimeMs();
+
+        rs2::frameset data_fly;
+        if (pipe_fly->poll_for_frames(&data_fly)) {
+            getColorFrame(data_fly.get_color_frame(), I_fly);
+            
+            cv::Mat image;
+            vpImageConvert::convert(I_fly, image);
+            if (image.empty()){
+                continue;
+            }
+            // cv::medianBlur(image, image, 3);
+            cv::Mat hsv, mask;
+            cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+            // cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(210,255,255), mask);
+            cv::inRange(hsv, cv::Scalar(1, 0, 207), cv::Scalar(180,77,255), mask); // a red laser blob
+            cv::Moments m = cv::moments(mask, false);
+            x_blob = m.m10/m.m00;
+            y_blob = m.m01/m.m00;
+
+            // cv::circle( image, cv::Point(x_blob, y_blob), 5, cv::Scalar(255,0,0), 3, cv::LINE_AA);
+        
+            // // // ploting
+            // cv::circle( image, cv::Point(center_x, center_y), radius_small, cv::Scalar(0,255,0), 1, cv::LINE_AA);
+            // cv::circle( image, cv::Point(center_x, center_y), radius_big, cv::Scalar(0,0,255), 1, cv::LINE_AA);
+
+            // // cv::imshow("mask", mask);
+            // // cv::imshow("image2_with", im_with_keypoints);
+            // cv::imshow("image", image);
+            // int k = cv::waitKey(1); 
+
+        }
+
+        std::cout << "Loop time: " << vpTime::measureTimeMs() - loop_start_time << std::endl;
+    }
+
 }
 
 // int main(int argc, char **argv) {

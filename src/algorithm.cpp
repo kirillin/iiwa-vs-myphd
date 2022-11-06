@@ -960,11 +960,13 @@ class Controller {
         double t0 = utils::nowtime();
         double t_prev = 0;
         while (0 == lcm.handle()) {
+            double loop_time = vpTime::measureTimeMs();
+
             const int64_t utime = utils::micros();
             double t = utils::nowtime() - t0;
             double dt = t - t_prev;
             t_prev = t;
-            double freq = 1.0 / dt;
+            // double freq = 1.0 / dt;
 
             if (init == true) {
                 init = false;
@@ -977,6 +979,8 @@ class Controller {
             Eigen::Matrix<double, 6, 1> v_c_copy;
             v_c_copy.setZero();
             test_set_robot_velocity(v_c_copy, t, dt, utils::micros());
+
+            std::cout << "Loop time: " << vpTime::measureTimeMs() - loop_time << std::endl;
         }
     }
 };
