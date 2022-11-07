@@ -24,7 +24,7 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/Geometry>
 #include <Eigen/QR>
-#include <boost/scoped_ptr.hpp>
+// #include <boost/scoped_ptr.hpp>
 #include <boost/units/conversion.hpp>
 #include <boost/units/io.hpp>
 #include <boost/units/systems/angle/degrees.hpp>
@@ -52,8 +52,32 @@
 class CV {
     std::mutex mtx;
     int CV_STATE;
+    
+    std::vector<double> ss;
+    int kk = 0;
+    Eigen::Matrix<double, 2, 1> shift;
 
     MulticameraRealsense mcamera;
+
+    // 2 stage -- snake
+    FineMeasurementsEmulalor fm_emulator;
+    bool system_state;                    // [0, 1, 2] visp, snake, off
+    Eigen::Matrix<double, 2, 1> state_0;  // get from CV
+
+    // camera snake algorithm detection
+    double center_x = 0;
+    double center_y = 0;
+    double radius_small = 0;
+    double radius_big = 0;
+
+    double num_circles_1 = 0;
+    double num_circles_2 = 0;
+
+    int x_blob, y_blob;  // global vars
+
+    double initialisation_time = 1;
+
+    Eigen::Matrix<double, 2, 1> y;
 
     ros::NodeHandle nh;
     ros::Publisher vel_pub;
@@ -79,15 +103,21 @@ class CV {
     CV() {
         CV_STATE = 0;  // 0, 1, 2, 3 ???
 
-        vel_pub = nh.advertise<geometry_msgs::Twist>("iiwa_vel", 1, true);
+        vel_pub = nh.advertise<geometry_msgs::Twist>("iiwa_vel", 1, false);
         state_pub = nh.advertise<std_msgs::Int32>("iiwa_state", 1, true);
 
+        fm_emulator.init(10);
+        fm_emulator.init_isotropic_surface_data(10);
+        system_state = 1;  // [0, 1, 2] visp, snake, off
+        state_0.setZero();
+        y = state_0;
     }
 
     ~CV() {
         publish_stop();
         vel_pub.shutdown();
         state_pub.shutdown();
+        // delete mcamera;
     }
 
     void computePose(std::vector<vpPoint> &point, const std::vector<vpImagePoint> &ip, const vpCameraParameters &cam, bool init, vpHomogeneousMatrix &cMo) {
@@ -115,25 +145,6 @@ class CV {
         pose.computePose(vpPose::VIRTUAL_VS, cMo);
     }
 
-    void display_point_trajectory(const vpImage<unsigned char> &I, const std::vector<vpImagePoint> &vip,
-                                  std::vector<vpImagePoint> *traj_vip) {
-        for (size_t i = 0; i < vip.size(); i++) {
-            if (traj_vip[i].size()) {
-                // Add the point only if distance with the previous > 1 pixel
-                if (vpImagePoint::distance(vip[i], traj_vip[i].back()) > 1.) {
-                    traj_vip[i].push_back(vip[i]);
-                }
-            } else {
-                traj_vip[i].push_back(vip[i]);
-            }
-        }
-        for (size_t i = 0; i < vip.size(); i++) {
-            for (size_t j = 1; j < traj_vip[i].size(); j++) {
-                vpDisplay::displayLine(I, traj_vip[i][j - 1], traj_vip[i][j], vpColor::green, 2);
-            }
-        }
-    }
-
     void make_twist_msg(geometry_msgs::Twist &twist, double x, double y, double z, double wx, double wy, double wz) {
         twist.linear.x = x;
         twist.linear.y = y;
@@ -144,24 +155,39 @@ class CV {
     }
 
     void publish_stop() {
-        stc::cout << "STOP ROBOT\n";
-        
-        double start_time = ros::Time::now().toSec();
-        double t = 0;
-        ros::Rate R(100);
-        while (nh.ok() && t < 3.0) {
-            t = ros::Time::now().toSec() - start_time;
-            
-            geometry_msgs::Twist twist_stop;
-            make_twist_msg(twist_stop, 0, 0, 0, 0, 0, 0);
-            vel_pub.publish(twist_stop);
+        {
+            std::cout << "STOP ROBOT\n";
 
-            std_msgs::Int32 state;
-            state.data = -1;  // stop robot state
-            state_pub.publish(state);
+            ros::NodeHandle nh;
+            ros::Publisher vel_pub;
+            ros::Publisher state_pub;
 
-            ros::spinOnce();
-            R.sleep();
+            vel_pub = nh.advertise<geometry_msgs::Twist>("iiwa_vel", 1, true);
+            state_pub = nh.advertise<std_msgs::Int32>("iiwa_state", 1, true);
+
+            double start_time = ros::Time::now().toSec();
+            double t = 0;
+            ros::Rate R(100);
+            // while (nh.ok() && t < 3.0) {
+            while (nh.ok()) {
+                std::cout << "stoping...\n";
+
+                t = ros::Time::now().toSec() - start_time;
+
+                geometry_msgs::Twist twist_stop;
+                make_twist_msg(twist_stop, 0, 0, 0, 0, 0, 0);
+                vel_pub.publish(twist_stop);
+
+                std_msgs::Int32 state;
+                state.data = -1;  // stop robot state
+                state_pub.publish(state);
+
+                ros::spinOnce();
+                R.sleep();
+            }
+
+            vel_pub.shutdown();
+            state_pub.shutdown();
         }
     }
 
@@ -271,7 +297,67 @@ class CV {
             send_velocities = false;
             servo_started = false;
             static double t_init_servo = vpTime::measureTimeMs();
-            std::cout << "Init completed!\n";
+            std::cout << "Init IBVS completed!\n";
+
+            // snake init
+            double t0 = vpTime::measureTimeSecond();
+            double t = 0;
+            while (t < initialisation_time) {
+                t = vpTime::measureTimeSecond() - t0;
+
+                rs2::frameset data_fly;
+                if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+                    mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+                }
+
+                cv::Mat image;
+                vpImageConvert::convert(mcamera.I_fly, image);
+
+                cv::medianBlur(image, image, 7);
+
+                // finding circles
+                cv::Mat gray;
+                cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+                cv::medianBlur(gray, gray, 3);
+
+                std::vector<cv::Vec3f> circles1;
+                cv::HoughCircles(gray, circles1, cv::HOUGH_GRADIENT, 1,
+                                 100,               // change this value to detect circles with different distances to each other
+                                 100, 30, 100, 300  // change the last two parameters
+                );
+                std::vector<cv::Vec3f> circles2;
+                cv::HoughCircles(gray, circles2, cv::HOUGH_GRADIENT, 1,
+                                 100,            // change this value to detect circles with different distances to each other
+                                 100, 30, 1, 30  // change the last two parameters
+                );
+
+                if (circles1.size() > 0 && circles2.size() > 0) {
+                    center_x += circles1[0][0] + circles2[0][0];
+                    center_y += circles1[0][1] + circles2[0][1];
+
+                    radius_big += circles1[0][2];
+                    radius_small += circles2[0][2];
+
+                    cv::circle(image, cv::Point(circles1[0][0], circles1[0][1]), circles1[0][2], cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+                    cv::circle(image, cv::Point(circles2[0][0], circles2[0][1]), circles2[0][2], cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+                }
+                num_circles_1 += circles1.size();
+                num_circles_2 += circles2.size();
+
+                // cv::imshow("sss", image);
+                // int k = cv::waitKey(1);
+            }
+
+            center_x = center_x / (num_circles_1 + num_circles_2);
+            center_y = center_y / (num_circles_1 + num_circles_2);
+            radius_big = radius_big / num_circles_1;
+            radius_small = radius_small / num_circles_2;
+
+            int size = 2 * radius_big / sqrt(2);  // squere inside circle
+            int grid = 1;
+            fm_emulator.init_isotropic_surface_data(size / grid);
+            bool is_init_snake = false;
+
             //////////////////
             // end init();
             //////////////////
@@ -287,12 +373,11 @@ class CV {
                     double dt = t - t_prev;
                     t_prev = t;
 
-                    CV_STATE = 0;
-                    publish(-0.02, 0, 0, 0, 0, 0, 1);
+                    // CV_STATE = 0;
+                    // publish(-0.02, 0, 0, 0, 0, 0, 1);
                     /////////////
                     // start update();
                     /////////////
-
 
                     vpColVector v_c(6);
                     Eigen::Matrix<double, 6, 1> v_c_snake;
@@ -303,7 +388,7 @@ class CV {
                         if (mcamera.pipe_robot->poll_for_frames(&data_robot)) {
                             mcamera.frame_to_mat(data_robot.get_infrared_frame(1), mcamera.mat_robot);
                             vpImageConvert::convert(mcamera.mat_robot, mcamera.I_robot);
-                        }          
+                        }
 
                         vpDisplay::display(mcamera.I_robot);
                         std::vector<vpHomogeneousMatrix> cMo_vec;
@@ -423,7 +508,6 @@ class CV {
                             vpDisplay::displayText(mcamera.I_robot, 40, 20, ss.str(), vpColor::white);
                         }
 
-
                         vpDisplay::flush(mcamera.I_robot);
                         vpMouseButton::vpMouseButtonType button;
                         if (vpDisplay::getClick(mcamera.I_robot, button, false)) {
@@ -443,38 +527,150 @@ class CV {
                         }
 
                     } else if (CV_STATE == 2) {  // 2 stage --snake
-                        rs2::frameset data_fly;
-                        if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
-                            mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
-                            vpDisplay::display(mcamera.I_fly);
-                            vpDisplay::flush(mcamera.I_fly);
-                        }
 
                         Eigen::Matrix<double, 6, 1> v_cs;
                         v_cs.setZero();
 
+                        rs2::frameset data_fly;
+                        if (mcamera.pipe_fly->poll_for_frames(&data_fly)) {
+                            mcamera.getColorFrame(data_fly.get_color_frame(), mcamera.I_fly);
+
+                            cv::Mat src;
+                            vpImageConvert::convert(mcamera.I_fly, src);
+                            if (src.empty()) {
+                                continue;
+                            }
+
+                            // cv::Mat image = src(cv::Range(center_y - radius_big, center_y + radius_big), cv::Range(center_x - radius_big, center_x + radius_big));
+                            cv::Mat image = src(cv::Range(center_y - size / 2, center_y + size / 2), cv::Range(center_x - size / 2, center_x + size / 2));
+                            cv::flip(image, image, 1);
+                            // std::cout << "***" << std::endl;
+                            // std::cout << center_x << "\t" << center_y << std::endl;
+                            // std::cout << radius_big << "\t" << size <<  std::endl;
+
+                            // cv::medianBlur(image, image, 3);
+                            cv::Mat hsv, mask;
+                            cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+                            // cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(210,255,255), mask);
+                            cv::inRange(hsv, cv::Scalar(1, 0, 207), cv::Scalar(180, 77, 255), mask);  // a red laser blob
+                            cv::Moments m = cv::moments(mask, false);
+                            x_blob = m.m10 / m.m00;
+                            y_blob = m.m01 / m.m00;
+
+                            cv::circle(image, cv::Point(x_blob, y_blob), 5, cv::Scalar(255, 0, 0), 3, cv::LINE_AA);
+
+                            // // ploting
+                            // cv::circle(image, cv::Point(center_x, center_y), radius_small, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+                            // cv::circle(image, cv::Point(center_x, center_y), radius_big, cv::Scalar(0, 0, 255), 1, cv::LINE_AA);
+
+                            // cv::imshow("mask", mask);
+                            // cv::imshow("image2_with", im_with_keypoints);
+                            // cv::imshow("image_laser", image);
+                            // int k = cv::waitKey(1);
+
+                            // end of CV
+
+
+                            // if bloob in ROI
+                            y << 0, 0;
+                            if ((y_blob > 0 && y_blob < size) && (x_blob > 0 && x_blob < size)) {
+                                y << y_blob, x_blob;
+                                // std::cout << y.transpose() << std::endl;
+
+
+                                if (!is_init_snake) {
+                                    state_0(0) = y(0);
+                                    state_0(1) = y(1);
+                                    is_init_snake = true;
+                                }
+
+                                double omega_x = 0;
+                                double omega_y = 0;
+
+                                // std::cout << "INSIDE ROI\n";
+
+                                // if inside big circle
+                                if (x_blob < size && y_blob < size) {
+                                    // std::cout << "INSIDE BIG CIRCLE\n";std::cout << "INSIDE BIG CIRCLE\n";
+
+                                    // laser inside big circle
+                                    if (abs(x_blob - size / 2) < radius_small && abs(y_blob - size / 2) < radius_small) {
+                                        std::cout << "INSIDE SMALL CIRCLE\n";
+                                        // laser inside small circle
+                                        CV_STATE = 3;  // goal achived
+                                        std::cout << "[SNAKE] Goal achived!\n";
+                                    } else {
+                                        // std::cout << "INSIDE SNAKE SEARCH\n";
+
+                                        // wait_while abs(dq.sum()) < 0.001
+                                        if (!fm_emulator.is_inited) {
+                                            fm_emulator.search_init(state_0);
+                                            // y = state_0;
+                                        }
+                                        // std::cout << y.transpose() << std::endl;
+                                        // std::cout << state_0.transpose() << std::endl;
+
+                                        double s;
+                                        fm_emulator.get_isotropic_surface_data(s, y);
+
+                                        bool arrived;
+                                        
+
+                                        ss.push_back(s);
+                                        kk++;
+                                        if (kk > 10) {
+                                            s = s / 10;
+                                            fm_emulator.update(s, y, shift, arrived);
+                                        }
+
+
+                                        // std::cout << y.transpose() << "\t" << s << "\t" << arrived <<"\n";
+
+                                        // // robot control using `y`
+                                        // double omega_x = copysign(1.0, y(0));
+                                        // double omega_y = copysign(1.0, y(1));
+                                        double omega_x = shift(0);
+                                        double omega_y = shift(1);
+
+                                        v_cs << 0, 0, 0, 0.001 * omega_x, 0.001 * omega_y, 0;
+                                        publish(v_cs(0), v_cs(1), v_cs(2), v_cs(3), v_cs(4), v_cs(5), CV_STATE);
+                                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+                                    }
+                                }
+                            }
+                            cv::imshow("image_laser", image);
+                            int k = cv::waitKey(1);
+
+                        }
                         // PUBLISH VELOCITIES
-                        publish(v_cs(0), v_cs(1), v_cs(2), v_cs(3), v_cs(4), v_cs(5), CV_STATE);
+                        // v_cs << 0, 0, 0, 0, 0, 0;
+                        // publish(v_cs(0), v_cs(1), v_cs(2), v_cs(3), v_cs(4), v_cs(5), CV_STATE);
+                        // std::this_thread::sleep_for(std::chrono::milliseconds(500));
                     } else {
                         std::cout << "[FSM] CV_STATE in unknown: " << CV_STATE << std::endl;
                     }
 
                     // FSM
-                    if (!has_converged) {
+                    if (!has_converged && CV_STATE < 3) {
+                        is_init_snake = false;
                         CV_STATE = 1;
-                        std::cout << "[FSM] CV_STATE: " << CV_STATE << " -- 1 stage -- `ibvs` algorithm!\n";
-                    } else {
+                        // std::cout << "[FSM] CV_STATE: " << CV_STATE << " -- 1 stage -- `ibvs` algorithm!\n";
+                    } else if (has_converged && CV_STATE < 3) {
                         CV_STATE = 2;
-                        std::cout << "[FSM] CV_STATE: " << CV_STATE << " -- 2 stage -- `snake` algorithm!\n";
+                        // std::cout << "[FSM] CV_STATE: " << CV_STATE << " -- 2 stage -- `snake` algorithm!\n";
+                    } else {
+                        // std::cout << "[FSM] CV_STATE: " << CV_STATE << "\n";
                     }
+                    CV_STATE = 2;
+
                     /////////////
                     // end update();
                     /////////////
 
-
                     ros::spinOnce();
                     R.sleep();
-                    std::cout << "[CV node] freq: " << 1 / (ros::Time::now().toSec() - start_time) << std::endl;
+                    // std::cout << "[CV node] freq: " << 1 / (ros::Time::now().toSec() - start_time) << std::endl;
                 } catch (...) {
                     std::cout << "Try...catch\n";
                     publish_stop();
@@ -491,6 +687,7 @@ class CV {
             return EXIT_FAILURE;
         } catch (const std::exception &e) {
             std::cout << "Exception: " << e.what() << std::endl;
+            publish_stop();
             return EXIT_FAILURE;
         }
         return 0;

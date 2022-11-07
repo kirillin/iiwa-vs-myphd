@@ -44,6 +44,8 @@ MulticameraRealsense::MulticameraRealsense() {
 MulticameraRealsense::~MulticameraRealsense() {
     delete profile_robot;
     delete pipe_robot;
+    delete profile_fly;
+    delete pipe_fly;
 }
 
 /* function from librealsense api examples */
@@ -136,7 +138,7 @@ void MulticameraRealsense::test_2() {
 void MulticameraRealsense::test_3() {
     double loop_start_time = 0;
     
-    vpDisplayX d;
+    // vpDisplayX d;
 
     double center_x = 0;
     double center_y = 0;
@@ -163,35 +165,6 @@ void MulticameraRealsense::test_3() {
         vpImageConvert::convert(I_fly, image);
         cv::medianBlur(image, image, 7);
         
-        // // finding laser
-        // cv::Mat hsv, mask;
-        // cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
-        // cv::inRange(hsv, cv::Scalar(1, 100, 100), cv::Scalar(240,255,255), mask);
-
-        // double minVal; double maxVal; cv::Point minLoc; cv::Point maxLoc;
-        // // cv::Point matchLoc;
-        // // cv::minMaxLoc(mask, &minVal, &maxVal, &minLoc, &maxLoc);
-        // // cv::circle( image, maxLoc, 10, cv::Scalar(255,0,0), 3, cv::LINE_AA);
-
-        // cv::Mat gray, th;
-        // cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-        
-        // cv::adaptiveThreshold(gray, th, 200, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 3, 2);
-
-        // std::vector<std::vector<cv::Point> > contours;
-        // std::vector<cv::Vec4i> hierarchy;
-        // cv::findContours( th, contours, hierarchy, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE );
-        
-        // std::vector<cv::Moments> mu(contours.size() );
-        // std::vector<cv::Point2f> mc( contours.size() );
-        // for( size_t i = 1; i< contours.size(); i++ )
-        // {
-        //     cv::Scalar color = cv::Scalar( 0,255,0 );
-        //     cv::drawContours( image, contours, (int)i, color, 1, cv::LINE_8, hierarchy, 0 );
-            
-        // }
-        // // std::cout << "      " << contours.size() << std::endl;
-
         // finding circles
         cv::Mat gray;
         cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);

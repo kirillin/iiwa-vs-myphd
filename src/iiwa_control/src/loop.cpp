@@ -42,7 +42,7 @@ VelocityController::VelocityController() {
     state_sub = nh.subscribe("iiwa_state", 10, &VelocityController::state_callback, this);
 
     feedback_state = 0;
-    
+
     v_c.setZero();
 
     Projection.diagonal() << 1, 1, 0, 1, 1, 1;
@@ -51,7 +51,7 @@ VelocityController::VelocityController() {
 }
 
 VelocityController::~VelocityController() {
-    //TODO stop robot
+    // TODO stop robot
 }
 
 void VelocityController::handleFeedbackMessage(const lcm::ReceiveBuffer *rbuf, const std::string &chan, const drake::lcmt_iiwa_status *msg) {
@@ -63,7 +63,6 @@ void VelocityController::handleFeedbackMessage(const lcm::ReceiveBuffer *rbuf, c
     }
     mtx.unlock();
 }
-
 
 void VelocityController::vel_callback(const geometry_msgs::Twist &msg) {
     mtx.lock();
@@ -84,13 +83,13 @@ void VelocityController::state_callback(const std_msgs::Int32 &msg) {
 
 /* Publish command to robot */
 void VelocityController::publish(Eigen::Matrix<double, 7, 1> &tau_fb, int64_t utime) {
-    // std::cout << "tau_fb::";
-    // for (int i = 0; i < 7; i++) {
-    //     std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
-    // }
-    // std::cout << std::endl;
+    std::cout << "tau_fb::";
+    for (int i = 0; i < 7; i++) {
+        std::cout << std::setw(2) << tau_fb(i) << std::setprecision(8) <<  " \t";
+    }
+    std::cout << std::endl;
 
-    // mtx.lock();
+    mtx.lock();
 
     lcm_command.utime = utime;
     lcm_command.num_joints = kNumJoints;
@@ -152,45 +151,45 @@ int VelocityController::set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_
         q_error = q_des - q;
         // int ramp_state = 0; // [0, 1, 2] -- no ramp, init, ramp -- it's a global variable
 
-        // check if q_error too big, then turn off ramp
-        for (int i = 0; i < kNumJoints; i++) {
-            // if ((tau_fb(i) - tau_fb_prev(i)) > 3.0) {
-            if ((abs(q_error[i]) > 0.3) && ramp_state == 0) {  // (t - t_ramp > 2.0)WARNING: hardcoded `5` depends to exponentiol ramp parameter
-                // init_ramp = true;
-                ramp_state = 1;
-                break;
-            }
-        }
+        // // check if q_error too big, then turn off ramp
+        // for (int i = 0; i < kNumJoints; i++) {
+        //     // if ((tau_fb(i) - tau_fb_prev(i)) > 3.0) {
+        //     if ((abs(q_error[i]) > 0.3) && ramp_state == 0) {  // (t - t_ramp > 2.0)WARNING: hardcoded `5` depends to exponentiol ramp parameter
+        //         // init_ramp = true;
+        //         ramp_state = 1;
+        //         break;
+        //     }
+        // }
 
-        // initialize ramp parameters
-        if (ramp_state == 1) {
-            ramp_q_error = q_des - q;
-            t_ramp0 = t;
-            Eigen::Matrix<double, 7, 1> t_ramp_vec;
-            t_ramp = -999;
-            for (int i = 0; i < kNumJoints; i++) {
-                double val = ((q_des(i) - q(i)) / ramp_q_error(i));
-                if (val > 0) {
-                    t_ramp_vec(i) = log(val) / 6;
-                } else {
-                    t_ramp_vec(i) = 2.0;  // WARNING: what if `val` is negative? check it!
-                }
-                if (t_ramp < t_ramp_vec(i)) {
-                    t_ramp = t_ramp_vec(i);
-                }
-            }
-            ramp_state = 2;
-            // init_ramp = false;
-        }
+        // // initialize ramp parameters
+        // if (ramp_state == 1) {
+        //     ramp_q_error = q_des - q;
+        //     t_ramp0 = t;
+        //     Eigen::Matrix<double, 7, 1> t_ramp_vec;
+        //     t_ramp = -999;
+        //     for (int i = 0; i < kNumJoints; i++) {
+        //         double val = ((q_des(i) - q(i)) / ramp_q_error(i));
+        //         if (val > 0) {
+        //             t_ramp_vec(i) = log(val) / 6;
+        //         } else {
+        //             t_ramp_vec(i) = 2.0;  // WARNING: what if `val` is negative? check it!
+        //         }
+        //         if (t_ramp < t_ramp_vec(i)) {
+        //             t_ramp = t_ramp_vec(i);
+        //         }
+        //     }
+        //     ramp_state = 2;
+        //     // init_ramp = false;
+        // }
 
-        if (ramp_state == 2) {
-            if (t - t_ramp0 > t_ramp) {
-                ramp_state = 0;
-            }
-            q_error = q_des - q - ramp_q_error * exp(-6 * (t - t_ramp0));  // `1`-`1.5` seconds smoth increasing (bigger value`6` -> larger smooth transietn)
-        }
+        // if (ramp_state == 2) {
+        //     if (t - t_ramp0 > t_ramp) {
+        //         ramp_state = 0;
+        //     }
+        //     q_error = q_des - q - ramp_q_error * exp(-6 * (t - t_ramp0));  // `1`-`1.5` seconds smoth increasing (bigger value`6` -> larger smooth transietn)
+        // }
 
-        tau_fb = 700 * K * q_error - 40 * B * dq;
+        tau_fb = 1000 * K * q_error - 40 * B * dq;
     }
 
     // log_file << tau_fb.transpose() << " " << q_error.transpose() << " " << dq.transpose() << " " << q_delta.transpose() << " " << t << "\n";
@@ -200,20 +199,20 @@ int VelocityController::set_robot_velocity(const Eigen::Matrix<double, 6, 1> &v_
 }
 
 void VelocityController::loop() {
-    if (!lcm.good())
-        std::cout << "lcm problem ad lcm.good()\n";
+    try {
+        if (!lcm.good())
+            std::cout << "lcm problem ad lcm.good()\n";
 
-    lcm.subscribe(kLcmStatusChannel, &VelocityController::handleFeedbackMessage, this);
+        lcm.subscribe(kLcmStatusChannel, &VelocityController::handleFeedbackMessage, this);
 
-    bool init = true;
+        bool init = true;
 
-    std::cout << "Loop started vel cart" << std::endl;
-    double t0 = utils::nowtime();
-    double t_prev = 0;
+        std::cout << "Loop started vel cart" << std::endl;
+        double t0 = utils::nowtime();
+        double t_prev = 0;
 
-    ros::Rate R(600);
-    while (nh.ok()) {
-        try {
+        ros::Rate R(600);
+        while (nh.ok()) {
             double start_time = ros::Time::now().toSec();
 
             const int64_t utime = utils::micros();
@@ -230,29 +229,28 @@ void VelocityController::loop() {
                     }
                     q_des_prev = Q_DES_0;
                 }
-                
-                v_c = Projection * v_c;
 
                 if (feedback_state == 1) {
+                    v_c = Projection * v_c;
                     set_robot_velocity(v_c, t, dt, utils::micros());
                 } else if (feedback_state == 2) {
-                    // set_robot_velocity(v_c, t, dt, utils::micros());
+                    set_robot_velocity(v_c, t, dt, utils::micros());
                 } else {
                     Eigen::Matrix<double, 6, 1> v_c;
                     v_c.setZero();
                     set_robot_velocity(v_c, t, dt, utils::micros());
                 }
-                
             }
 
             ros::spinOnce();
             R.sleep();
-            std::cout << "freq: " <<  1 / (ros::Time::now().toSec() - start_time) << "\t state: " <<  feedback_state << std::endl;
-        } catch (...) {
-            std::cout << "Try...catch\n";
+            std::cout << "freq: " << 1 / (ros::Time::now().toSec() - start_time) << "\t state: " << feedback_state << std::endl;
         }
+    } catch (...) {
+        std::cout << "Try...catch\n";
     }
 }
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "velocity_controller_node");
